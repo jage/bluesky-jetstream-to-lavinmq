@@ -2,6 +2,14 @@
 
 A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket and publishes messages to a LavinMQ stream queue.
 
+LavinMQ streams documentation: https://lavinmq.com/documentation/streams
+
+## TODO:
+
+* Add `x-stream-filter-value` and message headers like `type: post`, `date:2025-08-27`
+* Look at compression, make sure we can store lots of data
+* Build a simple consumer to actually read from LavinMQ
+
 ## Installation
 
 ```bash
