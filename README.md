@@ -9,7 +9,6 @@ A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket
 
 * Add `x-stream-filter-value` and message headers like `type: post`, `date: 2025-08-27`, `language: en`
 * Look at compression, make sure we can store lots of data
-* Build a simple consumer to actually read from LavinMQ
 
 ## Installation
 

@@ -9,11 +9,14 @@ class BlueSkyStreamer {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
+    this.messageCount = 0;
+    this.lastReportTime = Date.now();
   }
 
   async init() {
     await this.connectAMQP();
     this.connectWebSocket();
+    this.startThroughputReporting();
   }
 
   async connectAMQP() {
@@ -78,6 +81,7 @@ class BlueSkyStreamer {
       persistent: true,
       contentType: 'application/json'
     });
+    this.messageCount++;
   }
 
   handleReconnect() {
@@ -94,6 +98,17 @@ class BlueSkyStreamer {
       console.error('Max reconnect attempts reached. Exiting.');
       process.exit(1);
     }
+  }
+
+  startThroughputReporting() {
+    setInterval(() => {
+      const now = Date.now();
+      const elapsed = (now - this.lastReportTime) / 1000;
+      const rate = (this.messageCount / elapsed).toFixed(2);
+      console.log(`Published ${this.messageCount} messages (${rate} msg/sec)`);
+      this.messageCount = 0;
+      this.lastReportTime = now;
+    }, 5000);
   }
 
   async close() {

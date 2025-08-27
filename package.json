@@ -4,7 +4,8 @@
   "description": "Bluesky Jetstream to LavinMQ bridge",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "consumer": "node consumer.js"
   },
   "dependencies": {
     "ws": "^8.14.2",
