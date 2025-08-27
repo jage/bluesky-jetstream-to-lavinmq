@@ -2,7 +2,8 @@
 
 A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket and publishes messages to a LavinMQ stream queue.
 
-LavinMQ streams documentation: https://lavinmq.com/documentation/streams
+* LavinMQ streams documentation: https://lavinmq.com/documentation/streams
+* Bluesky Jetstream documentation: https://github.com/bluesky-social/jetstream
 
 ## TODO:
 
