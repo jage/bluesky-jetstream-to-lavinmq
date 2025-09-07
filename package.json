@@ -4,14 +4,20 @@
   "description": "Bluesky Jetstream to LavinMQ bridge",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "consumer": "node consumer.js"
+    "start": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node index.js",
+    "consumer": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node consumer.js"
   },
   "dependencies": {
-    "ws": "^8.14.2",
-    "@cloudamqp/amqp-client": "^3.1.0"
+    "@cloudamqp/amqp-client": "^3.1.0",
+    "ws": "^8.14.2"
   },
-  "keywords": ["bluesky", "jetstream", "lavinmq", "amqp", "websocket"],
+  "keywords": [
+    "bluesky",
+    "jetstream",
+    "lavinmq",
+    "amqp",
+    "websocket"
+  ],
   "author": "",
   "license": "MIT"
 }
