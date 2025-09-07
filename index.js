@@ -7,10 +7,16 @@ class BlueSkyStreamer {
     this.amqpClient = null;
     this.amqpChannel = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 1000;
+    this.maxReconnectAttempts = 10;
+    this.baseReconnectDelay = 1000;
+    this.maxReconnectDelay = 30000; // Max 30 seconds
     this.messageCount = 0;
     this.lastReportTime = Date.now();
+    this.jetStreamServers = [
+      "jetstream1.us-east.bsky.network",
+      "jetstream2.us-east.bsky.network",
+    ];
+    this.currentServerIndex = 0;
   }
 
   async init() {
@@ -44,14 +50,13 @@ class BlueSkyStreamer {
 
   connectWebSocket() {
     try {
-      console.log("Connecting to Bluesky Jetstream...");
-      this.ws = new WebSocket(
-        "wss://jetstream2.us-east.bsky.network/subscribe",
-      );
+      const server = this.jetStreamServers[this.currentServerIndex];
+      console.log(`Connecting to Bluesky Jetstream: ${server}`);
+      this.ws = new WebSocket(`wss://${server}/subscribe`);
 
       this.ws.on("open", () => {
         console.log("WebSocket connected to Bluesky Jetstream");
-        this.reconnectAttempts = 0;
+        this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
       });
 
       this.ws.on("message", async (data) => {
@@ -67,7 +72,9 @@ class BlueSkyStreamer {
       });
 
       this.ws.on("close", (code, reason) => {
-        console.log(`WebSocket closed: ${code} ${reason}`);
+        console.log(
+          `WebSocket closed: ${code}, ${reason ? reason.toString() : "no reason"}, reconnect in ${this.getReconnectDelay()}ms`,
+        );
         this.handleReconnect();
       });
     } catch (error) {
@@ -89,22 +96,34 @@ class BlueSkyStreamer {
     this.messageCount++;
   }
 
+  getReconnectDelay() {
+    const delay = Math.min(
+      this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts),
+      this.maxReconnectDelay,
+    );
+    return delay;
+  }
+
   handleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      console.log(
-        `Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${this.reconnectDelay}ms`,
-      );
+    this.reconnectAttempts++;
+    this.currentServerIndex =
+      (this.currentServerIndex + 1) % this.jetStreamServers.length;
+    const delay = this.getReconnectDelay();
 
-      setTimeout(() => {
-        this.connectWebSocket();
-      }, this.reconnectDelay);
+    console.log(
+      `Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} to ${this.jetStreamServers[this.currentServerIndex]} in ${delay}ms`,
+    );
 
-      this.reconnectDelay *= 2;
-    } else {
-      console.error("Max reconnect attempts reached. Exiting.");
-      process.exit(1);
-    }
+    setTimeout(() => {
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        // Reset attempts after max attempts and use max delay
+        console.log(
+          "Resetting reconnect attempts, continuing with max delay...",
+        );
+        this.reconnectAttempts = this.maxReconnectAttempts - 1;
+      }
+      this.connectWebSocket();
+    }, delay);
   }
 
   startThroughputReporting() {
