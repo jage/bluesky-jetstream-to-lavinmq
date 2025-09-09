@@ -89,11 +89,102 @@ class BlueSkyStreamer {
     }
 
     const streamName = process.env.STREAM_NAME || "bluesky-stream";
+    const headers = this.extractHeaders(data);
+    
     await this.amqpChannel.basicPublish("", streamName, data, {
       persistent: true,
       contentType: "application/json",
+      headers: headers,
     });
     this.messageCount++;
+  }
+
+  extractHeaders(data) {
+    try {
+      const message = JSON.parse(data.toString());
+      const headers = {};
+
+      // Basic message kind
+      headers['bs.kind'] = message.kind || '';
+
+      if (message.kind === 'commit' && message.commit) {
+        const commit = message.commit;
+
+        // Operation and collection
+        headers['bs.operation'] = commit.operation || '';
+        headers['bs.collection'] = commit.collection || '';
+
+        // Extract type from collection
+        if (commit.collection) {
+          headers['bs.type'] = this.extractTypeFromCollection(commit.collection);
+        }
+
+        // DID and other identifiers
+        headers['bs.did'] = message.did || '';
+        headers['bs.rkey'] = commit.rkey || '';
+        headers['bs.cid'] = commit.cid || '';
+
+        // Timestamp info
+        if (message.time_us) {
+          headers['bs.time_us'] = message.time_us.toString();
+          // Convert to YYYY-MM-DD format
+          const date = new Date(message.time_us / 1000);
+          headers['bs.date'] = date.toISOString().split('T')[0];
+        }
+
+        // Record-specific headers (only for create/update operations)
+        if (commit.record && commit.operation !== 'delete') {
+          const record = commit.record;
+
+          // Language (for posts)
+          if (record.langs && record.langs.length > 0) {
+            headers['bs.lang'] = record.langs[0];
+          }
+
+          // Created at timestamp
+          if (record.createdAt) {
+            headers['bs.created_at'] = record.createdAt;
+            // Additional date from record timestamp
+            const recordDate = new Date(record.createdAt);
+            headers['bs.record_date'] = recordDate.toISOString().split('T')[0];
+          }
+
+          // Text length (for posts)
+          if (record.text) {
+            headers['bs.text_chars'] = record.text.length.toString();
+          }
+
+          // Media detection
+          if (record.embed && record.embed.$type && record.embed.$type.startsWith('app.bsky.embed')) {
+            headers['bs.has_media'] = 'true';
+          } else {
+            headers['bs.has_media'] = 'false';
+          }
+        }
+      }
+
+      return headers;
+    } catch (error) {
+      console.error('Failed to extract headers:', error);
+      return {};
+    }
+  }
+
+  extractTypeFromCollection(collection) {
+    if (!collection) return 'other';
+    
+    const mapping = {
+      'app.bsky.feed.post': 'post',
+      'app.bsky.feed.like': 'like',
+      'app.bsky.feed.repost': 'repost',
+      'app.bsky.graph.follow': 'follow',
+      'app.bsky.graph.list': 'list',
+      'app.bsky.actor.profile': 'profile',
+      'app.bsky.graph.listitem': 'listitem',
+      'app.bsky.graph.block': 'block'
+    };
+
+    return mapping[collection] || 'other';
   }
 
   getReconnectDelay() {

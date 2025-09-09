@@ -56,16 +56,53 @@ node consumer.js 10                       # Get 10 messages as JSON array
 node consumer.js 100 > samples.json       # Get 100 messages and save to file
 ```
 
+#### Filtered consumption
+```bash
+node consumer.js --lang en                # Only English messages
+node consumer.js --posts-only             # Only text posts (no likes, reposts, etc.)
+node consumer.js 50 --lang ja             # Get 50 Japanese messages
+node consumer.js --lang en --posts-only   # English text posts only
+node consumer.js --lang es > spanish.json # Spanish messages to file
+```
+
 **Consumer Options:**
+- `--lang <language>`: Filter by language code (e.g., en, ja, es, fr)
+- `--posts-only`: Only consume text posts (excludes likes, reposts, follows, etc.)
 - `--help`: Show usage help
 
 ## Features
 
 - Connects to Bluesky Jetstream WebSocket feed
-- Publishes all messages to LavinMQ stream queue
+- Publishes all messages to LavinMQ stream queue with rich headers
 - Automatic reconnection with exponential backoff
 - Graceful shutdown handling
+- Message filtering via headers for language, type, date, and action
 - Minimal dependencies (ws, amqp-client.js)
+
+## Message Headers
+
+The producer automatically adds headers to each message for filtering:
+
+**Basic Headers:**
+- `bs.kind` - Message type (commit, handle, migrate, tombstone, info)
+- `bs.operation` - Operation type (create, update, delete)
+- `bs.type` - Content type (post, like, repost, follow, profile, etc.)
+- `bs.date` - Date in YYYY-MM-DD format
+
+**Identifier Headers:**
+- `bs.did` - Actor DID
+- `bs.rkey` - Record key  
+- `bs.cid` - Content hash
+
+**Content Headers (for posts):**
+- `bs.lang` - Language code (e.g., "en", "ja")
+- `bs.text_chars` - Text length
+- `bs.has_media` - true/false for embedded media
+
+**Timestamp Headers:**
+- `bs.time_us` - Jetstream timestamp (microseconds)
+- `bs.created_at` - Author timestamp (ISO-8601)
+- `bs.record_date` - Record date in YYYY-MM-DD format
 
 ## Dependencies
 

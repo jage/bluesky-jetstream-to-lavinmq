@@ -6,6 +6,8 @@ class StreamConsumer {
     this.amqpChannel = null;
     this.consumer = null;
     this.messageLimit = options.messageLimit || null;
+    this.language = options.language || null;
+    this.postsOnly = options.postsOnly || false;
     this.messageCount = 0;
     this.messages = [];
   }
@@ -60,27 +62,52 @@ class StreamConsumer {
           resolve();
         };
 
-        // Use queue.subscribe for stream consumption with proper error handling
-        const consumer = await queue.subscribe({ noAck: false }, async (msg) => {
+        // Prepare consume options with optional filtering
+        const consumeOptions = { noAck: false };
+        if (this.language || this.postsOnly) {
+          const filterParts = [];
+          if (this.language) filterParts.push(`lang-${this.language}`);
+          if (this.postsOnly) filterParts.push('posts-only');
+          
+          consumeOptions.tag = `filter-${filterParts.join('-')}-${Date.now()}`;
+          consumeOptions.args = {
+            "x-stream-filter": {}
+          };
+          
+          if (this.language) {
+            consumeOptions.args["x-stream-filter"]["bs.lang"] = this.language;
+          }
+          
+          if (this.postsOnly) {
+            consumeOptions.args["x-stream-filter"]["bs.type"] = "post";
+          }
+        }
+
+      // Use queue.subscribe for stream consumption with proper error handling
+      const consumer = await queue.subscribe(consumeOptions, async (msg) => {
           try {
             if (this.messageLimit && this.messageCount >= this.messageLimit) {
               return;
             }
 
             if (msg && msg.properties.contentType === "application/json") {
-              const jsonData = JSON.parse(msg.bodyToString());
-              
+              const body = JSON.parse(msg.bodyToString());
+              const messageWithHeaders = {
+                headers: msg.properties.headers || {},
+                body: body
+              };
+
               if (this.messageLimit) {
-                this.messages.push(jsonData);
+                this.messages.push(messageWithHeaders);
                 this.messageCount++;
-                
+
                 if (this.messageCount >= this.messageLimit) {
                   await msg.ack();
                   await cleanup(true);
                   return;
                 }
               } else {
-                console.log(JSON.stringify(jsonData));
+                console.log(JSON.stringify(messageWithHeaders));
               }
             }
             // Acknowledge the message to prevent redelivery
@@ -140,17 +167,22 @@ class StreamConsumer {
 
 function printUsage() {
   console.log(`
-Usage: node consumer.js [number_of_messages]
+Usage: node consumer.js [number_of_messages] [options]
 
 Arguments:
   number_of_messages    Number of messages to retrieve (optional, defaults to unlimited)
 
 Options:
+  --lang <language>    Filter by language code (e.g., en, ja, es)
+  --posts-only         Only consume text posts (excludes likes, reposts, follows, etc.)
   --help               Show this help message
 
 Examples:
   node consumer.js                          # Consume messages indefinitely
   node consumer.js 10                       # Get 10 messages as JSON array
+  node consumer.js --lang en                # Only English messages
+  node consumer.js --posts-only             # Only text posts
+  node consumer.js 50 --lang ja --posts-only # Get 50 Japanese text posts
   node consumer.js 100 > samples.json       # Get 100 messages and save to file
 `);
 }
@@ -164,14 +196,29 @@ async function main() {
   }
 
   let messageLimit = null;
+  let language = null;
+  let postsOnly = false;
 
   // Parse first argument as message count if it's a number
   if (args.length > 0 && !isNaN(parseInt(args[0])) && parseInt(args[0]) > 0) {
     messageLimit = parseInt(args[0]);
   }
 
+  // Parse remaining arguments
+  const startIndex = messageLimit ? 1 : 0;
+  for (let i = startIndex; i < args.length; i++) {
+    if (args[i] === "--lang" && i + 1 < args.length) {
+      language = args[i + 1];
+      i++;
+    } else if (args[i] === "--posts-only") {
+      postsOnly = true;
+    }
+  }
+
   const consumer = new StreamConsumer({
-    messageLimit
+    messageLimit,
+    language,
+    postsOnly
   });
 
   // Only set up signal handlers for unlimited consumption
@@ -190,7 +237,7 @@ async function main() {
   try {
     await consumer.connect();
     await consumer.consume();
-    
+
     if (messageLimit) {
       await consumer.close();
     }
