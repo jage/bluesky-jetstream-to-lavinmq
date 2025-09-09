@@ -1,6 +1,6 @@
 # Bluesky Streams
 
-A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket and publishes messages to a LavinMQ stream queue.
+A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket and publishes messages to a LavinMQ stream queue. Includes both a command-line interface and a web-based real-time viewer.
 
 - LavinMQ streams documentation: https://lavinmq.com/documentation/streams
 - Bluesky Jetstream documentation: https://github.com/bluesky-social/jetstream
@@ -38,6 +38,26 @@ Or with custom configuration:
 ```bash
 AMQP_URL=amqp://user:pass@localhost:5672 STREAM_NAME=my-stream npm start
 ```
+
+### Web-based Stream Viewer
+
+Start a local web server to view the Bluesky stream in your browser:
+
+```bash
+npm run serve
+# or
+python3 -m http.server 8000
+```
+
+Then open http://localhost:8000 in your browser.
+
+**Web Viewer Features:**
+- 🔴 **Live streaming** with real-time message display
+- 🎯 **Advanced filtering** by message type (posts, likes, reposts, follows) and language (45+ supported)
+- 📊 **Live statistics** showing message rates, type breakdown, and top languages
+- ⚡ **WebSocket connection** directly to LavinMQ for minimal latency
+- 🎨 **Responsive UI** with clean, modern design
+- 📱 **Mobile-friendly** interface
 
 ### Consumer (Read from LavinMQ)
 
