@@ -13,13 +13,10 @@ class StreamConsumer {
   async connect() {
     try {
       const amqpUrl = process.env.AMQP_URL || "amqp://localhost:5672";
-      console.log("Connecting to AMQP...");
 
       this.amqpClient = new AMQPClient(amqpUrl);
       await this.amqpClient.connect();
       this.amqpChannel = await this.amqpClient.channel();
-
-      console.log("Connected to LavinMQ");
     } catch (error) {
       console.error("AMQP connection failed:", error);
       throw error;
@@ -83,8 +80,7 @@ class StreamConsumer {
                   return;
                 }
               } else {
-                console.log(JSON.stringify(jsonData, null, 2));
-                console.log("---");
+                console.log(JSON.stringify(jsonData));
               }
             }
             // Acknowledge the message to prevent redelivery
@@ -97,16 +93,11 @@ class StreamConsumer {
         });
 
         if (this.messageLimit) {
-          console.log(`Fetching ${this.messageLimit} messages from stream: ${streamName}`);
-          
           // Timeout after 10 seconds
           timeoutId = setTimeout(async () => {
             await cleanup(false);
             reject(new Error(`Timeout: Only received ${this.messageCount}/${this.messageLimit} messages`));
           }, 10000);
-        } else {
-          console.log(`Consuming messages from stream: ${streamName}`);
-          console.log("Press Ctrl+C to exit\n");
         }
 
         // Store consumer reference for cleanup
@@ -186,13 +177,11 @@ async function main() {
   // Only set up signal handlers for unlimited consumption
   if (!messageLimit) {
     process.on("SIGINT", async () => {
-      console.log("\nShutting down consumer...");
       await consumer.close();
       process.exit(0);
     });
 
     process.on("SIGTERM", async () => {
-      console.log("\nShutting down consumer...");
       await consumer.close();
       process.exit(0);
     });
