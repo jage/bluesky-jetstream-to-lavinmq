@@ -5,10 +5,11 @@
   "main": "index.js",
   "scripts": {
     "start": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node index.js",
-    "consumer": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node consumer.js"
+    "consumer": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node consumer.js",
+    "serve": "python3 -m http.server 8000"
   },
   "dependencies": {
-    "@cloudamqp/amqp-client": "^3.1.0",
+    "@cloudamqp/amqp-client": "^3.2.1",
     "ws": "^8.14.2"
   },
   "keywords": [
