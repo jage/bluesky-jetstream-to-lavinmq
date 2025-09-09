@@ -25,6 +25,10 @@ Set the following environment variables:
 
 ## Usage
 
+### Producer (Jetstream to LavinMQ)
+
+Start the producer to consume from Bluesky Jetstream and publish to LavinMQ:
+
 ```bash
 npm start
 ```
@@ -34,6 +38,26 @@ Or with custom configuration:
 ```bash
 AMQP_URL=amqp://user:pass@localhost:5672 STREAM_NAME=my-stream npm start
 ```
+
+### Consumer (Read from LavinMQ)
+
+The consumer can run in two modes:
+
+#### Unlimited consumption (runs until stopped)
+```bash
+npm run consumer
+# or
+node consumer.js
+```
+
+#### Limited consumption (fetches N messages and stops)
+```bash
+node consumer.js 10                       # Get 10 messages as JSON array
+node consumer.js 100 > samples.json       # Get 100 messages and save to file
+```
+
+**Consumer Options:**
+- `--help`: Show usage help
 
 ## Features
 
