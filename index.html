@@ -1,482 +1,544 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bluesky Stream Viewer</title>
     <script type="module">
-        import { AMQPWebSocketClient } from './node_modules/@cloudamqp/amqp-client/dist/amqp-websocket-client.mjs';
-        window.AMQPWebSocketClient = AMQPWebSocketClient;
+      import { AMQPWebSocketClient } from "./node_modules/@cloudamqp/amqp-client/dist/amqp-websocket-client.mjs";
+      window.AMQPWebSocketClient = AMQPWebSocketClient;
     </script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        .header {
-            background: #1e293b;
-            color: white;
-            padding: 20px;
-        }
-        
-        .filters {
-            padding: 20px;
-            border-bottom: 1px solid #e2e8f0;
-            background: #f8fafc;
-        }
-        
-        .filter-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            min-width: 150px;
-        }
-        
-        label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #475569;
-            margin-bottom: 4px;
-        }
-        
-        select, input {
-            padding: 8px;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
-        select:focus, input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        
-        .controls {
-            display: flex;
-            gap: 10px;
-            align-items: end;
-        }
-        
-        button {
-            padding: 8px 16px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        
-        button:hover {
-            background: #2563eb;
-        }
-        
-        button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-        
-        .status {
-            padding: 20px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-connected { background: #10b981; }
-        .status-connecting { background: #f59e0b; }
-        .status-disconnected { background: #ef4444; }
-        
-        .messages {
-            height: 600px;
-            overflow-y: auto;
-            padding: 20px;
-        }
-        
-        .message {
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            margin-bottom: 12px;
-            overflow: hidden;
-        }
-        
-        .message-header {
-            background: #f8fafc;
-            padding: 10px 15px;
-            font-size: 12px;
-            color: #64748b;
-            display: flex;
-            justify-content: between;
-        }
-        
-        .message-type {
-            font-weight: 600;
-            color: #1e293b;
-        }
-        
-        .message-time {
-            color: #64748b;
-            margin-left: auto;
-        }
-        
-        .message-content {
-            padding: 15px;
-        }
-        
-        .message-text {
-            font-size: 16px;
-            line-height: 1.4;
-            margin-bottom: 8px;
-        }
-        
-        .message-meta {
-            font-size: 12px;
-            color: #64748b;
-        }
-        
-        .message-author {
-            font-weight: 500;
-            color: #3b82f6;
-        }
-        
-        .message-stats {
-            margin-top: 8px;
-            font-size: 12px;
-            color: #64748b;
-        }
-        
-        .clear-messages {
-            background: #6b7280;
-            margin-left: 10px;
-        }
-        
-        .clear-messages:hover {
-            background: #4b5563;
-        }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: #1e293b;
+        color: white;
+        padding: 20px;
+      }
+
+      .filters {
+        padding: 20px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+      }
+
+      .filter-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        min-width: 150px;
+      }
+
+      label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 4px;
+      }
+
+      select,
+      input {
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      select:focus,
+      input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: end;
+      }
+
+      button {
+        padding: 8px 16px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      button:hover {
+        background: #2563eb;
+      }
+
+      button:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      .status {
+        padding: 20px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+
+      .status-connected {
+        background: #10b981;
+      }
+      .status-connecting {
+        background: #f59e0b;
+      }
+      .status-disconnected {
+        background: #ef4444;
+      }
+
+      .messages {
+        height: 600px;
+        overflow-y: auto;
+        padding: 20px;
+      }
+
+      .message {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+
+      .message-header {
+        background: #f8fafc;
+        padding: 10px 15px;
+        font-size: 12px;
+        color: #64748b;
+        display: flex;
+        justify-content: between;
+      }
+
+      .message-type {
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      .message-time {
+        color: #64748b;
+        margin-left: auto;
+      }
+
+      .message-content {
+        padding: 15px;
+      }
+
+      .message-text {
+        font-size: 16px;
+        line-height: 1.4;
+        margin-bottom: 8px;
+      }
+
+      .message-meta {
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      .message-author {
+        font-weight: 500;
+        color: #3b82f6;
+      }
+
+      .message-stats {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      .clear-messages {
+        background: #6b7280;
+        margin-left: 10px;
+      }
+
+      .clear-messages:hover {
+        background: #4b5563;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>Bluesky Stream Viewer</h1>
-            <p>Live stream of Bluesky activities with filtering</p>
+      <div class="header">
+        <h1>Bluesky Stream Viewer</h1>
+        <p>Live stream of Bluesky activities with filtering</p>
+      </div>
+
+      <div class="filters">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="messageType">Message Type</label>
+            <select id="messageType">
+              <option value="">All Types</option>
+              <option value="post">Posts Only</option>
+              <option value="like">Likes Only</option>
+              <option value="follow">Follows Only</option>
+              <option value="repost">Reposts Only</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="language">Language</label>
+            <select id="language">
+              <option value="">All Languages</option>
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="pt">Portuguese</option>
+              <option value="ja">Japanese</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="it">Italian</option>
+              <option value="ko">Korean</option>
+              <option value="zh">Chinese (Simplified)</option>
+              <option value="zh-TW">Chinese (Traditional)</option>
+              <option value="ar">Arabic</option>
+              <option value="hi">Hindi</option>
+              <option value="ru">Russian</option>
+              <option value="nl">Dutch</option>
+              <option value="sv">Swedish</option>
+              <option value="no">Norwegian</option>
+              <option value="da">Danish</option>
+              <option value="fi">Finnish</option>
+              <option value="pl">Polish</option>
+              <option value="tr">Turkish</option>
+              <option value="th">Thai</option>
+              <option value="vi">Vietnamese</option>
+              <option value="id">Indonesian</option>
+              <option value="ms">Malay</option>
+              <option value="tl">Filipino</option>
+              <option value="uk">Ukrainian</option>
+              <option value="cs">Czech</option>
+              <option value="sk">Slovak</option>
+              <option value="hu">Hungarian</option>
+              <option value="ro">Romanian</option>
+              <option value="bg">Bulgarian</option>
+              <option value="hr">Croatian</option>
+              <option value="sr">Serbian</option>
+              <option value="sl">Slovenian</option>
+              <option value="et">Estonian</option>
+              <option value="lv">Latvian</option>
+              <option value="lt">Lithuanian</option>
+              <option value="el">Greek</option>
+              <option value="he">Hebrew</option>
+              <option value="fa">Persian</option>
+              <option value="ur">Urdu</option>
+              <option value="bn">Bengali</option>
+              <option value="ta">Tamil</option>
+              <option value="te">Telugu</option>
+              <option value="ml">Malayalam</option>
+              <option value="kn">Kannada</option>
+              <option value="gu">Gujarati</option>
+              <option value="mr">Marathi</option>
+              <option value="pa">Punjabi</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="startPosition">Start Position</label>
+            <select id="startPosition">
+              <option value="last" selected>Latest (Last)</option>
+              <option value="first">Beginning (First)</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="maxMessages">Max Messages</label>
+            <select id="maxMessages">
+              <option value="5" selected>5 messages</option>
+              <option value="10">10 messages</option>
+              <option value="25">25 messages</option>
+              <option value="50">50 messages</option>
+              <option value="100">100 messages</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="messageDelay">Message Delay (ms)</label>
+            <input
+              type="number"
+              id="messageDelay"
+              value="0"
+              min="0"
+              max="60000"
+              step="10"
+              placeholder="0"
+            />
+          </div>
+
+          <div class="controls">
+            <button id="startButton">Start Stream</button>
+            <button id="stopButton" disabled>Stop Stream</button>
+            <button id="clearButton" class="clear-messages">
+              Clear Messages
+            </button>
+          </div>
         </div>
-        
-        <div class="filters">
-            <div class="filter-row">
-                <div class="filter-group">
-                    <label for="messageType">Message Type</label>
-                    <select id="messageType">
-                        <option value="">All Types</option>
-                        <option value="post">Posts Only</option>
-                        <option value="like">Likes Only</option>
-                        <option value="follow">Follows Only</option>
-                        <option value="repost">Reposts Only</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label for="language">Language</label>
-                    <select id="language">
-                        <option value="">All Languages</option>
-                        <option value="en">English</option>
-                        <option value="es">Spanish</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="ja">Japanese</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="it">Italian</option>
-                        <option value="ko">Korean</option>
-                        <option value="zh">Chinese (Simplified)</option>
-                        <option value="zh-TW">Chinese (Traditional)</option>
-                        <option value="ar">Arabic</option>
-                        <option value="hi">Hindi</option>
-                        <option value="ru">Russian</option>
-                        <option value="nl">Dutch</option>
-                        <option value="sv">Swedish</option>
-                        <option value="no">Norwegian</option>
-                        <option value="da">Danish</option>
-                        <option value="fi">Finnish</option>
-                        <option value="pl">Polish</option>
-                        <option value="tr">Turkish</option>
-                        <option value="th">Thai</option>
-                        <option value="vi">Vietnamese</option>
-                        <option value="id">Indonesian</option>
-                        <option value="ms">Malay</option>
-                        <option value="tl">Filipino</option>
-                        <option value="uk">Ukrainian</option>
-                        <option value="cs">Czech</option>
-                        <option value="sk">Slovak</option>
-                        <option value="hu">Hungarian</option>
-                        <option value="ro">Romanian</option>
-                        <option value="bg">Bulgarian</option>
-                        <option value="hr">Croatian</option>
-                        <option value="sr">Serbian</option>
-                        <option value="sl">Slovenian</option>
-                        <option value="et">Estonian</option>
-                        <option value="lv">Latvian</option>
-                        <option value="lt">Lithuanian</option>
-                        <option value="el">Greek</option>
-                        <option value="he">Hebrew</option>
-                        <option value="fa">Persian</option>
-                        <option value="ur">Urdu</option>
-                        <option value="bn">Bengali</option>
-                        <option value="ta">Tamil</option>
-                        <option value="te">Telugu</option>
-                        <option value="ml">Malayalam</option>
-                        <option value="kn">Kannada</option>
-                        <option value="gu">Gujarati</option>
-                        <option value="mr">Marathi</option>
-                        <option value="pa">Punjabi</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label for="maxMessages">Max Messages</label>
-                    <select id="maxMessages">
-                        <option value="5" selected>5 messages</option>
-                        <option value="10">10 messages</option>
-                        <option value="25">25 messages</option>
-                        <option value="50">50 messages</option>
-                        <option value="100">100 messages</option>
-                    </select>
-                </div>
-                
-                <div class="controls">
-                    <button id="startButton">Start Stream</button>
-                    <button id="stopButton" disabled>Stop Stream</button>
-                    <button id="clearButton" class="clear-messages">Clear Messages</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="status">
-            <span class="status-indicator status-disconnected" id="statusIndicator"></span>
-            <span id="statusText">Disconnected</span>
-            <span id="messageCount" style="margin-left: 20px;">0 messages</span>
-            <div id="statsDisplay" style="margin-top: 10px; font-size: 12px; color: #64748b; min-height: 60px; line-height: 1.4;"></div>
-        </div>
-        
-        <div class="messages" id="messages">
-            <p style="color: #64748b; text-align: center; margin-top: 100px;">
-                Click "Start Stream" to begin receiving messages
-            </p>
-        </div>
+      </div>
+
+      <div class="status">
+        <span
+          class="status-indicator status-disconnected"
+          id="statusIndicator"
+        ></span>
+        <span id="statusText">Disconnected</span>
+        <span id="messageCount" style="margin-left: 20px">0 messages</span>
+        <div
+          id="statsDisplay"
+          style="
+            margin-top: 10px;
+            font-size: 12px;
+            color: #64748b;
+            min-height: 60px;
+            line-height: 1.4;
+          "
+        ></div>
+      </div>
+
+      <div class="messages" id="messages">
+        <p style="color: #64748b; text-align: center; margin-top: 100px">
+          Click "Start Stream" to begin receiving messages
+        </p>
+      </div>
     </div>
 
     <script>
-        let amqpClient = null;
-        let amqpChannel = null;
-        let consumer = null;
-        let messageCount = 0;
-        let maxMessages = 5;
-        let stats = {
-            totalReceived: 0,
-            posts: 0,
-            likes: 0,
-            reposts: 0,
-            follows: 0,
-            others: 0,
-            startTime: null,
-            languages: {}
-        };
-        
-        let lavinmqStats = {
-            memory: 0,
-            queueMessages: 0,
-            connections: 0,
-            lastUpdated: null
-        };
-        
-        let statsInterval = null;
-        
-        const statusIndicator = document.getElementById('statusIndicator');
-        const statusText = document.getElementById('statusText');
-        const messageCountElement = document.getElementById('messageCount');
-        const statsDisplay = document.getElementById('statsDisplay');
-        const messagesContainer = document.getElementById('messages');
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
-        const clearButton = document.getElementById('clearButton');
-        
-        function updateStatus(status, text) {
-            statusIndicator.className = `status-indicator status-${status}`;
-            statusText.textContent = text;
-        }
-        
-        function updateMessageCount() {
-            messageCountElement.textContent = `${messageCount} messages`;
-        }
-        
-        function updateStats(messageType, record) {
-            stats.totalReceived++;
-            
-            switch (messageType) {
-                case 'post':
-                    stats.posts++;
-                    // Track languages for posts
-                    if (record && record.langs) {
-                        record.langs.forEach(lang => {
-                            stats.languages[lang] = (stats.languages[lang] || 0) + 1;
-                        });
-                    }
-                    break;
-                case 'like':
-                    stats.likes++;
-                    break;
-                case 'repost':
-                    stats.reposts++;
-                    break;
-                case 'follow':
-                    stats.follows++;
-                    break;
-                default:
-                    stats.others++;
+      let amqpClient = null;
+      let amqpChannel = null;
+      let consumer = null;
+      let messageCount = 0;
+      let maxMessages = 5;
+      let messageDelay = 0;
+      let stats = {
+        totalReceived: 0,
+        posts: 0,
+        likes: 0,
+        reposts: 0,
+        follows: 0,
+        others: 0,
+        startTime: null,
+        languages: {},
+      };
+
+      let lavinmqStats = {
+        memory: 0,
+        queueMessages: 0,
+        connections: 0,
+        lastUpdated: null,
+      };
+
+      let statsInterval = null;
+
+      const statusIndicator = document.getElementById("statusIndicator");
+      const statusText = document.getElementById("statusText");
+      const messageCountElement = document.getElementById("messageCount");
+      const statsDisplay = document.getElementById("statsDisplay");
+      const messagesContainer = document.getElementById("messages");
+      const startButton = document.getElementById("startButton");
+      const stopButton = document.getElementById("stopButton");
+      const clearButton = document.getElementById("clearButton");
+
+      function updateStatus(status, text) {
+        statusIndicator.className = `status-indicator status-${status}`;
+        statusText.textContent = text;
+      }
+
+      function updateMessageCount() {
+        messageCountElement.textContent = `${messageCount} messages`;
+      }
+
+      function updateStats(messageType, record) {
+        stats.totalReceived++;
+
+        switch (messageType) {
+          case "post":
+            stats.posts++;
+            // Track languages for posts
+            if (record && record.langs) {
+              record.langs.forEach((lang) => {
+                stats.languages[lang] = (stats.languages[lang] || 0) + 1;
+              });
             }
-            
-            displayStats();
-        }
-        
-        async function fetchLavinMQStats() {
-            try {
-                const auth = btoa('lmoigtqq:hpcbHcVAYjEuUvcJCxVeO89JpC_StQ3E');
-                
-                // Try to fetch overview stats with CORS handling
-                const overviewResponse = await fetch('https://test-harsh-wallaby.lmq.cloudamqp.com/api/overview', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Basic ${auth}`,
-                        'Accept': 'application/json'
-                    },
-                    mode: 'cors'
-                });
-                
-                if (overviewResponse.ok) {
-                    const overview = await overviewResponse.json();
-                    lavinmqStats.memory = Math.round(overview.memory?.used / 1024 / 1024) || 0;
-                    lavinmqStats.connections = overview.object_totals?.connections || 0;
-                    lavinmqStats.lastUpdated = new Date().toLocaleTimeString();
-                } else {
-                    lavinmqStats.lastUpdated = 'API Error';
-                }
-                
-            } catch (error) {
-                lavinmqStats.lastUpdated = 'CORS Blocked';
-                
-                // Set some connection info we do know
-                if (amqpClient && amqpClient.connected) {
-                    lavinmqStats.connections = '1+'; // At least our connection
-                }
-            }
+            break;
+          case "like":
+            stats.likes++;
+            break;
+          case "repost":
+            stats.reposts++;
+            break;
+          case "follow":
+            stats.follows++;
+            break;
+          default:
+            stats.others++;
         }
 
-        function displayStats() {
-            const elapsed = stats.startTime ? Math.round((Date.now() - stats.startTime) / 1000) : 0;
-            const rate = elapsed > 0 ? (stats.totalReceived / elapsed).toFixed(1) : '0.0';
-            
-            const topLanguages = Object.entries(stats.languages)
-                .sort(([,a], [,b]) => b - a)
-                .slice(0, 3)
-                .map(([lang, count]) => `${lang}:${count}`)
-                .join(', ');
-            
-            let lavinmqStatsText = '';
-            if (lavinmqStats.lastUpdated === 'CORS Blocked') {
-                lavinmqStatsText = '<strong>LavinMQ:</strong> API access blocked by CORS policy | Connected via WebSocket<br>';
-            } else if (lavinmqStats.lastUpdated === 'API Error') {
-                lavinmqStatsText = '<strong>LavinMQ:</strong> API error | Connected via WebSocket<br>';
-            } else if (lavinmqStats.lastUpdated) {
-                lavinmqStatsText = `<strong>LavinMQ:</strong> ${lavinmqStats.memory}MB RAM | ${lavinmqStats.queueMessages} queued | ${lavinmqStats.connections} connections (${lavinmqStats.lastUpdated})<br>`;
-            } else {
-                const connectionStatus = amqpClient && amqpClient.connected ? 'Connected via WebSocket' : 'Disconnected';
-                lavinmqStatsText = `<strong>LavinMQ:</strong> ${connectionStatus} | Fetching management stats...<br>`;
-            }
-            
-            statsDisplay.innerHTML = `
+        displayStats();
+      }
+
+      async function fetchLavinMQStats() {
+        try {
+          const auth = btoa("lmoigtqq:hpcbHcVAYjEuUvcJCxVeO89JpC_StQ3E");
+
+          // Try to fetch overview stats with CORS handling
+          const overviewResponse = await fetch(
+            "https://test-harsh-wallaby.lmq.cloudamqp.com/api/overview",
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Basic ${auth}`,
+                Accept: "application/json",
+              },
+              mode: "cors",
+            },
+          );
+
+          if (overviewResponse.ok) {
+            const overview = await overviewResponse.json();
+            lavinmqStats.memory =
+              Math.round(overview.memory?.used / 1024 / 1024) || 0;
+            lavinmqStats.connections = overview.object_totals?.connections || 0;
+            lavinmqStats.lastUpdated = new Date().toLocaleTimeString();
+          } else {
+            lavinmqStats.lastUpdated = "API Error";
+          }
+        } catch (error) {
+          lavinmqStats.lastUpdated = "CORS Blocked";
+
+          // Set some connection info we do know
+          if (amqpClient && amqpClient.connected) {
+            lavinmqStats.connections = "1+"; // At least our connection
+          }
+        }
+      }
+
+      function displayStats() {
+        const elapsed = stats.startTime
+          ? Math.round((Date.now() - stats.startTime) / 1000)
+          : 0;
+        const rate =
+          elapsed > 0 ? (stats.totalReceived / elapsed).toFixed(1) : "0.0";
+
+        const topLanguages = Object.entries(stats.languages)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([lang, count]) => `${lang}:${count}`)
+          .join(", ");
+
+        let lavinmqStatsText = "";
+        if (lavinmqStats.lastUpdated === "CORS Blocked") {
+          lavinmqStatsText =
+            "<strong>LavinMQ:</strong> API access blocked by CORS policy | Connected via WebSocket<br>";
+        } else if (lavinmqStats.lastUpdated === "API Error") {
+          lavinmqStatsText =
+            "<strong>LavinMQ:</strong> API error | Connected via WebSocket<br>";
+        } else if (lavinmqStats.lastUpdated) {
+          lavinmqStatsText = `<strong>LavinMQ:</strong> ${lavinmqStats.memory}MB RAM | ${lavinmqStats.queueMessages} queued | ${lavinmqStats.connections} connections (${lavinmqStats.lastUpdated})<br>`;
+        } else {
+          const connectionStatus =
+            amqpClient && amqpClient.connected
+              ? "Connected via WebSocket"
+              : "Disconnected";
+          lavinmqStatsText = `<strong>LavinMQ:</strong> ${connectionStatus} | Fetching management stats...<br>`;
+        }
+
+        statsDisplay.innerHTML = `
                 ${lavinmqStatsText}
                 <strong>Stream:</strong> ${stats.totalReceived} total | ${rate}/sec | ${elapsed}s connected<br>
                 <strong>Types:</strong> Posts: ${stats.posts} | Likes: ${stats.likes} | Reposts: ${stats.reposts} | Follows: ${stats.follows} | Others: ${stats.others}<br>
-                ${topLanguages ? `<strong>Languages:</strong> ${topLanguages}` : ''}
+                ${topLanguages ? `<strong>Languages:</strong> ${topLanguages}` : ""}
             `;
+      }
+
+      function formatTimestamp(timeUs) {
+        const date = new Date(timeUs / 1000);
+        return date.toLocaleTimeString();
+      }
+
+      function getMessageType(record) {
+        if (!record || !record.$type) return "unknown";
+        const parts = record.$type.split(".");
+        return parts[parts.length - 1];
+      }
+
+      function renderMessage(data) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "message";
+
+        // Defensive access to nested properties
+        console.log("Processing message:", data);
+        const commit = data.body?.commit;
+        const record = commit?.record;
+        const messageType = getMessageType(record);
+        const timestamp = formatTimestamp(
+          data.body?.time_us || Date.now() * 1000,
+        );
+
+        let content = "";
+        let author = data.body?.did
+          ? data.body.did.substring(8, 28) + "..."
+          : "unknown";
+
+        if (messageType === "post" && record?.text) {
+          content = `<div class="message-text">${escapeHtml(record.text)}</div>`;
+          if (record?.langs && record.langs.length > 0) {
+            content += `<div class="message-meta">Language: ${record.langs.join(", ")}</div>`;
+          }
+        } else if (messageType === "like") {
+          content = `<div class="message-text">Liked a post</div>`;
+          if (record?.subject && record.subject.uri) {
+            const postId = record.subject.uri.split("/").pop();
+            content += `<div class="message-meta">Post: ${postId}</div>`;
+          }
+        } else if (messageType === "follow") {
+          content = `<div class="message-text">Followed a user</div>`;
+          if (record?.subject) {
+            const followedUser = record.subject.substring(8, 28) + "...";
+            content += `<div class="message-meta">User: ${followedUser}</div>`;
+          }
+        } else if (messageType === "repost") {
+          content = `<div class="message-text">Reposted</div>`;
+          if (record?.subject && record.subject.uri) {
+            const postId = record.subject.uri.split("/").pop();
+            content += `<div class="message-meta">Post: ${postId}</div>`;
+          }
+        } else {
+          content = `<div class="message-text">Activity: ${messageType}</div>`;
         }
-        
-        function formatTimestamp(timeUs) {
-            const date = new Date(timeUs / 1000);
-            return date.toLocaleTimeString();
-        }
-        
-        function getMessageType(record) {
-            if (!record || !record.$type) return 'unknown';
-            const parts = record.$type.split('.');
-            return parts[parts.length - 1];
-        }
-        
-        function renderMessage(data) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message';
-            
-            const commit = data.body.commit;
-            const record = commit.record;
-            const messageType = getMessageType(record);
-            const timestamp = formatTimestamp(data.body.time_us);
-            
-            let content = '';
-            let author = data.body.did.substring(8, 28) + '...';
-            
-            if (messageType === 'post' && record.text) {
-                content = `<div class="message-text">${escapeHtml(record.text)}</div>`;
-                if (record.langs && record.langs.length > 0) {
-                    content += `<div class="message-meta">Language: ${record.langs.join(', ')}</div>`;
-                }
-            } else if (messageType === 'like') {
-                content = `<div class="message-text">Liked a post</div>`;
-                if (record.subject && record.subject.uri) {
-                    const postId = record.subject.uri.split('/').pop();
-                    content += `<div class="message-meta">Post: ${postId}</div>`;
-                }
-            } else if (messageType === 'follow') {
-                content = `<div class="message-text">Followed a user</div>`;
-                if (record.subject) {
-                    const followedUser = record.subject.substring(8, 28) + '...';
-                    content += `<div class="message-meta">User: ${followedUser}</div>`;
-                }
-            } else if (messageType === 'repost') {
-                content = `<div class="message-text">Reposted</div>`;
-                if (record.subject && record.subject.uri) {
-                    const postId = record.subject.uri.split('/').pop();
-                    content += `<div class="message-meta">Post: ${postId}</div>`;
-                }
-            } else {
-                content = `<div class="message-text">Activity: ${messageType}</div>`;
-            }
-            
-            messageDiv.innerHTML = `
+
+        messageDiv.innerHTML = `
                 <div class="message-header">
                     <span class="message-type">${messageType.toUpperCase()}</span>
                     <span class="message-time">${timestamp}</span>
@@ -486,255 +548,287 @@
                     ${content}
                 </div>
             `;
-            
-            return messageDiv;
+
+        return messageDiv;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function shouldShowMessage(data, filters) {
+        const commit = data.body.commit;
+        const record = commit?.record;
+
+        // Filter by message type
+        if (filters.messageType) {
+          const messageType = getMessageType(record);
+          if (messageType !== filters.messageType) {
+            return false;
+          }
         }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+
+        // Filter by language for posts
+        if (
+          filters.language &&
+          record &&
+          record.$type === "app.bsky.feed.post"
+        ) {
+          if (!record.langs || !record.langs.includes(filters.language)) {
+            return false;
+          }
         }
-        
-        function shouldShowMessage(data, filters) {
-            const commit = data.body.commit;
-            const record = commit?.record;
-            
-            // Filter by message type
-            if (filters.messageType) {
-                const messageType = getMessageType(record);
-                if (messageType !== filters.messageType) {
-                    return false;
-                }
-            }
-            
-            // Filter by language for posts
-            if (filters.language && record && record.$type === 'app.bsky.feed.post') {
-                if (!record.langs || !record.langs.includes(filters.language)) {
-                    return false;
-                }
-            }
-            
-            return true;
+
+        return true;
+      }
+
+      function addMessage(data, filters) {
+        const commit = data.body.commit;
+        const record = commit?.record;
+        const messageType = getMessageType(record);
+
+        // Update stats for all messages (even filtered ones)
+        updateStats(messageType, record);
+
+        if (!shouldShowMessage(data, filters)) {
+          return;
         }
-        
-        function addMessage(data, filters) {
-            const commit = data.body.commit;
-            const record = commit?.record;
-            const messageType = getMessageType(record);
-            
-            // Update stats for all messages (even filtered ones)
-            updateStats(messageType, record);
-            
-            if (!shouldShowMessage(data, filters)) {
-                return;
-            }
-            
-            if (messageCount >= maxMessages) {
-                const firstMessage = messagesContainer.querySelector('.message');
-                if (firstMessage) {
-                    firstMessage.remove();
-                    messageCount--;
-                }
-            }
-            
-            const messageElement = renderMessage(data);
-            messagesContainer.appendChild(messageElement);
-            messageCount++;
-            updateMessageCount();
-            
-            // Auto-scroll to bottom
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        if (messageCount >= maxMessages) {
+          const firstMessage = messagesContainer.querySelector(".message");
+          if (firstMessage) {
+            firstMessage.remove();
+            messageCount--;
+          }
         }
-        
-        async function startStream() {
-            if (amqpClient) {
-                return;
-            }
-            
-            updateStatus('connecting', 'Connecting to LavinMQ...');
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            
-            maxMessages = parseInt(document.getElementById('maxMessages').value);
-            
-            // Reset and start stats tracking
-            stats = {
-                totalReceived: 0,
-                posts: 0,
-                likes: 0,
-                reposts: 0,
-                follows: 0,
-                others: 0,
-                startTime: Date.now(),
-                languages: {}
-            };
-            displayStats();
-            
-            const filters = {
-                messageType: document.getElementById('messageType').value,
-                language: document.getElementById('language').value
-            };
-            
-            try {
-                // Connect to LavinMQ using AMQP WebSocket client
-                const url = 'wss://test-harsh-wallaby.lmq.cloudamqp.com';
-                const vhost = 'lmoigtqq';
-                const username = 'lmoigtqq';
-                const password = 'hpcbHcVAYjEuUvcJCxVeO89JpC_StQ3E';
-                
-                amqpClient = new AMQPWebSocketClient(url, vhost, username, password);
-                await amqpClient.connect();
-                amqpChannel = await amqpClient.channel();
-                
-                updateStatus('connected', 'Connected - Setting up queue...');
-                
-                // Declare the stream queue
-                const streamName = 'bluesky-stream';
-                const queue = await amqpChannel.queue(
-                    streamName,
-                    { durable: true },
-                    { "x-queue-type": "stream" }
-                );
-                updateStatus('connected', 'Connected - Subscribing to messages...');
-                
-                // Set up consumer with optional filtering
-                const consumeOptions = { 
-                    noAck: false,
-                    args: {
-                        "x-stream-offset": "last" // Start from the latest messages
-                    }
-                };
-                
-                if (filters.language || filters.messageType) {
-                    const filterParts = [];
-                    if (filters.language) filterParts.push(`lang-${filters.language}`);
-                    if (filters.messageType) filterParts.push(`type-${filters.messageType}`);
-                    
-                    consumeOptions.tag = `web-${filterParts.join('-')}-${Date.now()}`;
-                    consumeOptions.args["x-stream-filter"] = {};
-                    
-                    // Note: These filters work if LavinMQ supports stream filtering
-                    if (filters.language) {
-                        consumeOptions.args["x-stream-filter"]["bs.lang"] = filters.language;
-                    }
-                    
-                    if (filters.messageType) {
-                        consumeOptions.args["x-stream-filter"]["bs.type"] = filters.messageType;
-                    }
-                } else {
-                    consumeOptions.tag = `web-all-${Date.now()}`;
-                }
-                
-                consumer = await queue.subscribe(consumeOptions, async (msg) => {
-                    try {
-                        if (msg && msg.properties && msg.properties.contentType === "application/json") {
-                            const bodyString = msg.bodyToString();
-                            const body = JSON.parse(bodyString);
-                            const messageWithHeaders = {
-                                headers: msg.properties.headers || {},
-                                body: body
-                            };
-                            
-                            addMessage(messageWithHeaders, filters);
-                        }
-                        await msg.ack();
-                    } catch (error) {
-                        console.error('Error processing message:', error);
-                        await msg.nack(false);
-                    }
-                });
-                
-                updateStatus('connected', 'Connected - Receiving messages');
-                
-                // LavinMQ management API is blocked by CORS, so skip API stats
-                lavinmqStats.lastUpdated = 'CORS Blocked';
-                displayStats();
-                
-                // Update display stats every 2 seconds (without LavinMQ API calls)
-                statsInterval = setInterval(() => {
-                    displayStats();
-                }, 2000);
-                
-            } catch (error) {
-                console.error('Connection error:', error);
-                updateStatus('disconnected', `Connection failed: ${error.message}`);
-                startButton.disabled = false;
-                stopButton.disabled = true;
-                
-                // Clean up on error
-                await cleanup();
-            }
+
+        const messageElement = renderMessage(data);
+        messagesContainer.appendChild(messageElement);
+        messageCount++;
+        updateMessageCount();
+
+        // Auto-scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      async function startStream() {
+        if (amqpClient) {
+          return;
         }
-        
-        async function stopStream() {
-            await cleanup();
-            updateStatus('disconnected', 'Disconnected');
-            startButton.disabled = false;
-            stopButton.disabled = true;
-        }
-        
-        async function cleanup() {
-            try {
-                // Clear stats interval
-                if (statsInterval) {
-                    clearInterval(statsInterval);
-                    statsInterval = null;
-                }
-                
-                if (consumer) {
-                    await consumer.cancel();
-                    consumer = null;
-                }
-                
-                if (amqpChannel) {
-                    await amqpChannel.close();
-                    amqpChannel = null;
-                }
-                
-                if (amqpClient) {
-                    await amqpClient.close();
-                    amqpClient = null;
-                }
-            } catch (error) {
-                console.error('Cleanup error:', error);
-            }
-        }
-        
-        function clearMessages() {
-            messagesContainer.innerHTML = '';
-            messageCount = 0;
-            updateMessageCount();
-            
-            // Reset stats but keep connection time
-            const currentStartTime = stats.startTime;
-            stats = {
-                totalReceived: 0,
-                posts: 0,
-                likes: 0,
-                reposts: 0,
-                follows: 0,
-                others: 0,
-                startTime: currentStartTime,
-                languages: {}
-            };
-            displayStats();
-        }
-        
-        startButton.addEventListener('click', startStream);
-        stopButton.addEventListener('click', stopStream);
-        clearButton.addEventListener('click', clearMessages);
-        
-        // Update max messages when changed
-        document.getElementById('maxMessages').addEventListener('change', function() {
-            maxMessages = parseInt(this.value);
-        });
-        
-        // Clean up when page is closed
-        window.addEventListener('beforeunload', cleanup);
-        
-        // Initialize stats display on page load
+
+        updateStatus("connecting", "Connecting to LavinMQ...");
+        startButton.disabled = true;
+        stopButton.disabled = false;
+
+        maxMessages = parseInt(document.getElementById("maxMessages").value);
+        messageDelay = parseInt(document.getElementById("messageDelay").value);
+
+        // Reset and start stats tracking
+        stats = {
+          totalReceived: 0,
+          posts: 0,
+          likes: 0,
+          reposts: 0,
+          follows: 0,
+          others: 0,
+          startTime: Date.now(),
+          languages: {},
+        };
         displayStats();
+
+        const filters = {
+          messageType: document.getElementById("messageType").value,
+          language: document.getElementById("language").value,
+        };
+
+        const startPosition = document.getElementById("startPosition").value;
+
+        try {
+          // Connect to LavinMQ using AMQP WebSocket client
+          const url = "ws://127.0.0.1:15672";
+          const vhost = "/";
+          const username = "guest";
+          const password = "guest";
+
+          amqpClient = new AMQPWebSocketClient(url, vhost, username, password);
+          await amqpClient.connect();
+          amqpChannel = await amqpClient.channel();
+
+          // Set prefetch to 10 to limit buffering for delay effectiveness
+          await amqpChannel.prefetch(10);
+
+          updateStatus("connected", "Connected - Setting up queue...");
+
+          // Declare the stream queue
+          const streamName = "bluesky-stream";
+          const queue = await amqpChannel.queue(
+            streamName,
+            { durable: true },
+            { "x-queue-type": "stream" },
+          );
+          updateStatus("connected", "Connected - Subscribing to messages...");
+
+          // Set up consumer with optional filtering
+          const consumeOptions = {
+            noAck: false,
+            args: {
+              "x-stream-offset": startPosition, // Start from selected position
+            },
+          };
+
+          if (filters.language || filters.messageType) {
+            const filterParts = [];
+            if (filters.language) filterParts.push(`lang-${filters.language}`);
+            if (filters.messageType)
+              filterParts.push(`type-${filters.messageType}`);
+
+            consumeOptions.tag = `web-${filterParts.join("-")}-${Date.now()}`;
+            consumeOptions.args["x-stream-filter"] = {};
+
+            // Note: These filters work if LavinMQ supports stream filtering
+            if (filters.language) {
+              consumeOptions.args["x-stream-filter"]["bs.lang"] =
+                filters.language;
+            }
+
+            if (filters.messageType) {
+              consumeOptions.args["x-stream-filter"]["bs.type"] =
+                filters.messageType;
+            }
+          } else {
+            consumeOptions.tag = `web-all-${Date.now()}`;
+          }
+
+          consumer = await queue.subscribe(consumeOptions, async (msg) => {
+            try {
+              if (
+                msg &&
+                msg.properties &&
+                msg.properties.contentType === "application/json"
+              ) {
+                const bodyString = msg.bodyToString();
+                const body = JSON.parse(bodyString);
+                const messageWithHeaders = {
+                  headers: msg.properties.headers || {},
+                  body: body,
+                };
+
+                addMessage(messageWithHeaders, filters);
+
+                // Apply artificial delay AFTER processing but BEFORE ack
+                if (messageDelay > 0) {
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, messageDelay),
+                  );
+                }
+              }
+              await msg.ack();
+            } catch (error) {
+              console.error("Error processing message:", error);
+              await msg.nack(false);
+            }
+          });
+
+          updateStatus("connected", "Connected - Receiving messages");
+
+          // LavinMQ management API is blocked by CORS, so skip API stats
+          lavinmqStats.lastUpdated = "CORS Blocked";
+          displayStats();
+
+          // Update display stats every 2 seconds (without LavinMQ API calls)
+          statsInterval = setInterval(() => {
+            displayStats();
+          }, 2000);
+        } catch (error) {
+          console.error("Connection error:", error);
+          updateStatus("disconnected", `Connection failed: ${error.message}`);
+          startButton.disabled = false;
+          stopButton.disabled = true;
+
+          // Clean up on error
+          await cleanup();
+        }
+      }
+
+      async function stopStream() {
+        await cleanup();
+        updateStatus("disconnected", "Disconnected");
+        startButton.disabled = false;
+        stopButton.disabled = true;
+      }
+
+      async function cleanup() {
+        try {
+          // Clear stats interval
+          if (statsInterval) {
+            clearInterval(statsInterval);
+            statsInterval = null;
+          }
+
+          if (consumer) {
+            await consumer.cancel();
+            consumer = null;
+          }
+
+          if (amqpChannel) {
+            await amqpChannel.close();
+            amqpChannel = null;
+          }
+
+          if (amqpClient) {
+            await amqpClient.close();
+            amqpClient = null;
+          }
+        } catch (error) {
+          console.error("Cleanup error:", error);
+        }
+      }
+
+      function clearMessages() {
+        messagesContainer.innerHTML = "";
+        messageCount = 0;
+        updateMessageCount();
+
+        // Reset stats but keep connection time
+        const currentStartTime = stats.startTime;
+        stats = {
+          totalReceived: 0,
+          posts: 0,
+          likes: 0,
+          reposts: 0,
+          follows: 0,
+          others: 0,
+          startTime: currentStartTime,
+          languages: {},
+        };
+        displayStats();
+      }
+
+      startButton.addEventListener("click", startStream);
+      stopButton.addEventListener("click", stopStream);
+      clearButton.addEventListener("click", clearMessages);
+
+      // Update max messages when changed
+      document
+        .getElementById("maxMessages")
+        .addEventListener("change", function () {
+          maxMessages = parseInt(this.value);
+        });
+
+      // Update message delay when changed
+      document
+        .getElementById("messageDelay")
+        .addEventListener("change", function () {
+          messageDelay = parseInt(this.value);
+        });
+
+      // Clean up when page is closed
+      window.addEventListener("beforeunload", cleanup);
+
+      // Initialize stats display on page load
+      displayStats();
     </script>
-</body>
+  </body>
 </html>
