@@ -8,101 +8,23 @@ A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket
 ## Architecture
 
 ```mermaid
-graph TB
-    subgraph "Bluesky Network"
-        ATProto[AT Protocol Network]
-        Jetstream1[jetstream1.us-east.bsky.network]
-        Jetstream2[jetstream2.us-east.bsky.network]
-        ATProto --> Jetstream1
-        ATProto --> Jetstream2
-    end
-
-    subgraph "Bluesky Streams App"
-        subgraph "Producer (Node.js)"
-            WSClient[WebSocket Client]
-            MessageProcessor[Message Processor]
-            HeaderExtractor[Header Extractor]
-            AMQPPublisher[AMQP Publisher]
-        end
-        
-        subgraph "LavinMQ Server"
-            Queue[(Stream Queue)]
-            Management[Management API]
-        end
-        
-        subgraph "HTTP Server (Node.js)"
-            HTTPServer[HTTP Server :8000]
-            TemplateEngine[Template Engine]
-        end
-        
-        subgraph "Consumers"
-            WebConsumer[Web Consumer<br/>Real-time Viewer]
-            CLIConsumer[CLI Consumer<br/>Batch Processing]
-        end
-    end
-    
-    %% Data Flow
-    Jetstream1 -.->|WebSocket<br/>wss://| WSClient
-    Jetstream2 -.->|WebSocket<br/>wss://| WSClient
-    
-    WSClient --> MessageProcessor
-    MessageProcessor --> HeaderExtractor
-    HeaderExtractor --> AMQPPublisher
-    AMQPPublisher -->|AMQP Publish| Queue
-    
-    HTTPServer --> TemplateEngine
-    TemplateEngine --> WebConsumer
-    
-    Queue -->|AMQP WebSocket| WebConsumer
-    Queue -->|AMQP| CLIConsumer
-    Management -.->|HTTP API| WebConsumer
+graph LR
+    Bluesky[Bluesky Jetstream] -->|WebSocket| Producer[Node.js Producer]
+    Producer -->|AMQP| LavinMQ[(LavinMQ Stream)]
+    LavinMQ -->|AMQP WebSocket| WebViewer[Web Viewer]
+    LavinMQ -->|AMQP| CLIConsumer[CLI Consumer]
+    Producer -->|HTTP :8000| WebViewer
     
     %% Styling
-    classDef external fill:#e1f5fe
-    classDef producer fill:#f3e5f5
-    classDef storage fill:#fff3e0
+    classDef external fill:#e3f2fd
+    classDef app fill:#f3e5f5
+    classDef storage fill:#fff8e1
     classDef consumer fill:#e8f5e8
-    classDef server fill:#fce4ec
     
-    class ATProto,Jetstream1,Jetstream2 external
-    class WSClient,MessageProcessor,HeaderExtractor,AMQPPublisher producer
-    class Queue,Management storage
-    class WebConsumer,CLIConsumer consumer
-    class HTTPServer,TemplateEngine server
-```
-
-### Message Flow
-
-```mermaid
-sequenceDiagram
-    participant BS as Bluesky Network
-    participant JS as Jetstream
-    participant WS as WebSocket Client
-    participant MP as Message Processor
-    participant HE as Header Extractor
-    participant AP as AMQP Publisher
-    participant LQ as LavinMQ Queue
-    participant WC as Web Consumer
-    participant CC as CLI Consumer
-
-    BS->>JS: AT Protocol Events
-    JS->>WS: JSON Messages via WebSocket
-    WS->>MP: Raw Message Data
-    MP->>HE: Parsed JSON
-    
-    Note over HE: Extracts metadata:<br/>• bs.type (post/like/follow)<br/>• bs.lang (language)<br/>• bs.date (YYYY-MM-DD)<br/>• bs.operation (create/update/delete)
-    
-    HE->>AP: Message + Headers
-    AP->>LQ: AMQP Publish with Headers
-    
-    par Web Consumer
-        LQ->>WC: AMQP WebSocket Subscribe
-        WC->>WC: Apply Delay (if configured)
-        WC->>WC: Display in Browser UI
-    and CLI Consumer  
-        LQ->>CC: AMQP Subscribe
-        CC->>CC: Process & Output
-    end
+    class Bluesky external
+    class Producer app
+    class LavinMQ storage
+    class WebViewer,CLIConsumer consumer
 ```
 
 ## TODO:
