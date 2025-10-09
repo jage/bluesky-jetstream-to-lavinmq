@@ -300,6 +300,7 @@
 
           <div class="controls">
             <button id="startButton">Start Stream</button>
+            <button id="pauseButton" disabled>Pause</button>
             <button id="stopButton" disabled>Stop Stream</button>
             <button id="clearButton" class="clear-messages">
               Clear Messages
@@ -341,6 +342,7 @@
       let messageCount = 0;
       let maxMessages = 5;
       let messageDelay = 0;
+      let isPaused = false;
       let stats = {
         totalReceived: 0,
         posts: 0,
@@ -367,6 +369,7 @@
       const statsDisplay = document.getElementById("statsDisplay");
       const messagesContainer = document.getElementById("messages");
       const startButton = document.getElementById("startButton");
+      const pauseButton = document.getElementById("pauseButton");
       const stopButton = document.getElementById("stopButton");
       const clearButton = document.getElementById("clearButton");
 
@@ -620,6 +623,7 @@
 
         updateStatus("connecting", "Connecting to LavinMQ...");
         startButton.disabled = true;
+        pauseButton.disabled = false;
         stopButton.disabled = false;
 
         maxMessages = parseInt(document.getElementById("maxMessages").value);
@@ -703,6 +707,11 @@
 
           consumer = await queue.subscribe(consumeOptions, async (msg) => {
             try {
+              // Wait if paused
+              while (isPaused) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+
               if (
                 msg &&
                 msg.properties &&
@@ -752,11 +761,25 @@
         }
       }
 
+      function togglePause() {
+        isPaused = !isPaused;
+        if (isPaused) {
+          pauseButton.textContent = "Resume";
+          updateStatus("connected", "Paused - Consumer active");
+        } else {
+          pauseButton.textContent = "Pause";
+          updateStatus("connected", "Connected - Receiving messages");
+        }
+      }
+
       async function stopStream() {
         await cleanup();
         updateStatus("disconnected", "Disconnected");
         startButton.disabled = false;
+        pauseButton.disabled = true;
+        pauseButton.textContent = "Pause";
         stopButton.disabled = true;
+        isPaused = false;
       }
 
       async function cleanup() {
@@ -807,6 +830,7 @@
       }
 
       startButton.addEventListener("click", startStream);
+      pauseButton.addEventListener("click", togglePause);
       stopButton.addEventListener("click", stopStream);
       clearButton.addEventListener("click", clearMessages);
 
