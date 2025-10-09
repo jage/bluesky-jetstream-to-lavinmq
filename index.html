@@ -354,13 +354,6 @@
         languages: {},
       };
 
-      let lavinmqStats = {
-        memory: 0,
-        queueMessages: 0,
-        connections: 0,
-        lastUpdated: null,
-      };
-
       let statsInterval = null;
 
       const statusIndicator = document.getElementById("statusIndicator");
@@ -411,42 +404,6 @@
         displayStats();
       }
 
-      async function fetchLavinMQStats() {
-        try {
-          const auth = btoa("lmoigtqq:hpcbHcVAYjEuUvcJCxVeO89JpC_StQ3E");
-
-          // Try to fetch overview stats with CORS handling
-          const overviewResponse = await fetch(
-            "https://test-harsh-wallaby.lmq.cloudamqp.com/api/overview",
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Basic ${auth}`,
-                Accept: "application/json",
-              },
-              mode: "cors",
-            },
-          );
-
-          if (overviewResponse.ok) {
-            const overview = await overviewResponse.json();
-            lavinmqStats.memory =
-              Math.round(overview.memory?.used / 1024 / 1024) || 0;
-            lavinmqStats.connections = overview.object_totals?.connections || 0;
-            lavinmqStats.lastUpdated = new Date().toLocaleTimeString();
-          } else {
-            lavinmqStats.lastUpdated = "API Error";
-          }
-        } catch (error) {
-          lavinmqStats.lastUpdated = "CORS Blocked";
-
-          // Set some connection info we do know
-          if (amqpClient && amqpClient.connected) {
-            lavinmqStats.connections = "1+"; // At least our connection
-          }
-        }
-      }
-
       function displayStats() {
         const elapsed = stats.startTime
           ? Math.round((Date.now() - stats.startTime) / 1000)
@@ -460,25 +417,11 @@
           .map(([lang, count]) => `${lang}:${count}`)
           .join(", ");
 
-        let lavinmqStatsText = "";
-        if (lavinmqStats.lastUpdated === "CORS Blocked") {
-          lavinmqStatsText =
-            "<strong>LavinMQ:</strong> API access blocked by CORS policy | Connected via WebSocket<br>";
-        } else if (lavinmqStats.lastUpdated === "API Error") {
-          lavinmqStatsText =
-            "<strong>LavinMQ:</strong> API error | Connected via WebSocket<br>";
-        } else if (lavinmqStats.lastUpdated) {
-          lavinmqStatsText = `<strong>LavinMQ:</strong> ${lavinmqStats.memory}MB RAM | ${lavinmqStats.queueMessages} queued | ${lavinmqStats.connections} connections (${lavinmqStats.lastUpdated})<br>`;
-        } else {
-          const connectionStatus =
-            amqpClient && amqpClient.connected
-              ? "Connected via WebSocket"
-              : "Disconnected";
-          lavinmqStatsText = `<strong>LavinMQ:</strong> ${connectionStatus} | Fetching management stats...<br>`;
-        }
+        const connectionStatus =
+          amqpClient && amqpClient.connected ? "Connected" : "Disconnected";
 
         statsDisplay.innerHTML = `
-                ${lavinmqStatsText}
+                <strong>LavinMQ:</strong> ${connectionStatus}<br>
                 <strong>Stream:</strong> ${stats.totalReceived} total | ${rate}/sec | ${elapsed}s connected<br>
                 <strong>Types:</strong> Posts: ${stats.posts} | Likes: ${stats.likes} | Reposts: ${stats.reposts} | Follows: ${stats.follows} | Others: ${stats.others}<br>
                 ${topLanguages ? `<strong>Languages:</strong> ${topLanguages}` : ""}
@@ -741,12 +684,9 @@
           });
 
           updateStatus("connected", "Connected - Receiving messages");
-
-          // LavinMQ management API is blocked by CORS, so skip API stats
-          lavinmqStats.lastUpdated = "CORS Blocked";
           displayStats();
 
-          // Update display stats every 2 seconds (without LavinMQ API calls)
+          // Update display stats every 2 seconds
           statsInterval = setInterval(() => {
             displayStats();
           }, 2000);
