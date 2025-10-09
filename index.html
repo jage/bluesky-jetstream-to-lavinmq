@@ -444,7 +444,6 @@
         messageDiv.className = "message";
 
         // Defensive access to nested properties
-        console.log("Processing message:", data);
         const commit = data.body?.commit;
         const record = commit?.record;
         const messageType = getMessageType(record);
