@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node index.js",
-    "consumer": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node consumer.js",
-    "serve": "python3 -m http.server 8000"
+    "consumer": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node consumer.js"
   },
   "dependencies": {
     "@cloudamqp/amqp-client": "^3.2.1",

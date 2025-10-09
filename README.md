@@ -44,34 +44,25 @@ Set the following environment variables:
 
 - `AMQP_URL`: LavinMQ connection URL (default: `amqp://localhost:5672`)
 - `STREAM_NAME`: Queue name for publishing messages (default: `bluesky-stream`)
+- `HTTP_PORT`: HTTP server port for web viewer (default: `8000`)
 
 ## Usage
 
-### Producer (Jetstream to LavinMQ)
+### Producer with Web Viewer
 
-Start the producer to consume from Bluesky Jetstream and publish to LavinMQ:
+Start the producer to consume from Bluesky Jetstream and publish to LavinMQ. The web viewer is automatically started on port 8000:
 
 ```bash
 npm start
 ```
 
+Then open http://localhost:8000 in your browser.
+
 Or with custom configuration:
 
 ```bash
-AMQP_URL=amqp://user:pass@localhost:5672 STREAM_NAME=my-stream npm start
+AMQP_URL=amqp://user:pass@localhost:5672 STREAM_NAME=my-stream HTTP_PORT=3000 npm start
 ```
-
-### Web-based Stream Viewer
-
-Start a local web server to view the Bluesky stream in your browser:
-
-```bash
-npm run serve
-# or
-python3 -m http.server 8000
-```
-
-Then open http://localhost:8000 in your browser.
 
 **Web Viewer Features:**
 - 🔴 **Live streaming** with real-time message display
