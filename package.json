@@ -8,7 +8,7 @@
     "consumer": "[ -f .env ] && export $(cat .env | grep -v '^#' | xargs) || true; node consumer.js"
   },
   "dependencies": {
-    "@cloudamqp/amqp-client": "^3.2.1",
+    "@cloudamqp/amqp-client": "^3.3.2",
     "ws": "^8.14.2"
   },
   "keywords": [
