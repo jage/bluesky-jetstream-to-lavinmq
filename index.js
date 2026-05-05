@@ -4,6 +4,17 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
+const TYPE_BY_COLLECTION = {
+  "app.bsky.feed.post": "post",
+  "app.bsky.feed.like": "like",
+  "app.bsky.feed.repost": "repost",
+  "app.bsky.graph.follow": "follow",
+  "app.bsky.graph.list": "list",
+  "app.bsky.actor.profile": "profile",
+  "app.bsky.graph.listitem": "listitem",
+  "app.bsky.graph.block": "block",
+};
+
 class BlueSkyStreamer {
   constructor() {
     this.ws = null;
@@ -136,69 +147,21 @@ class BlueSkyStreamer {
       const message = JSON.parse(data.toString());
       const headers = {};
 
-      // Basic message kind
-      headers["bs.kind"] = message.kind || "";
+      if (message.kind !== "commit" || !message.commit) return headers;
+      const commit = message.commit;
 
-      if (message.kind === "commit" && message.commit) {
-        const commit = message.commit;
+      headers["bs.type"] = TYPE_BY_COLLECTION[commit.collection] || "other";
 
-        // Operation and collection
-        headers["bs.operation"] = commit.operation || "";
-        headers["bs.collection"] = commit.collection || "";
+      if (message.time_us) {
+        headers["bs.date"] = new Date(message.time_us / 1000)
+          .toISOString()
+          .split("T")[0];
+      }
 
-        // Extract type from collection
-        if (commit.collection) {
-          headers["bs.type"] = this.extractTypeFromCollection(
-            commit.collection,
-          );
-        }
-
-        // DID and other identifiers
-        headers["bs.did"] = message.did || "";
-        headers["bs.rkey"] = commit.rkey || "";
-        headers["bs.cid"] = commit.cid || "";
-
-        // Timestamp info
-        if (message.time_us) {
-          headers["bs.time_us"] = message.time_us.toString();
-          // Convert to YYYY-MM-DD format
-          const date = new Date(message.time_us / 1000);
-          headers["bs.date"] = date.toISOString().split("T")[0];
-        }
-
-        // Record-specific headers (only for create/update operations)
-        if (commit.record && commit.operation !== "delete") {
-          const record = commit.record;
-
-          // Language (for posts)
-          if (record.langs && record.langs.length > 0) {
-            headers["bs.lang"] = record.langs[0];
-          }
-
-          // Created at timestamp
-          if (record.createdAt) {
-            headers["bs.created_at"] = record.createdAt;
-            // Additional date from record timestamp
-            const recordDate = new Date(record.createdAt);
-            headers["bs.record_date"] = recordDate.toISOString().split("T")[0];
-          }
-
-          // Text length (for posts)
-          if (record.text) {
-            headers["bs.text_chars"] = record.text.length.toString();
-          }
-
-          // Media detection
-          if (
-            record.embed &&
-            record.embed.$type &&
-            record.embed.$type.startsWith("app.bsky.embed")
-          ) {
-            headers["bs.has_media"] = "true";
-          } else {
-            headers["bs.has_media"] = "false";
-          }
-        }
+      const record = commit.record;
+      if (record && commit.operation !== "delete") {
+        if (record.langs?.length) headers["bs.lang"] = record.langs[0];
+        if (record.embed) headers["bs.has_media"] = "true";
       }
 
       return headers;
@@ -208,23 +171,6 @@ class BlueSkyStreamer {
       );
       return {};
     }
-  }
-
-  extractTypeFromCollection(collection) {
-    if (!collection) return "other";
-
-    const mapping = {
-      "app.bsky.feed.post": "post",
-      "app.bsky.feed.like": "like",
-      "app.bsky.feed.repost": "repost",
-      "app.bsky.graph.follow": "follow",
-      "app.bsky.graph.list": "list",
-      "app.bsky.actor.profile": "profile",
-      "app.bsky.graph.listitem": "listitem",
-      "app.bsky.graph.block": "block",
-    };
-
-    return mapping[collection] || "other";
   }
 
   getReconnectDelay() {
