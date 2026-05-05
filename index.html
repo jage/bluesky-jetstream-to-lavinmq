@@ -51,6 +51,23 @@
         min-width: 150px;
       }
 
+      .filter-group.url-group {
+        flex: 1;
+        min-width: 320px;
+      }
+
+      .section-connection {
+        padding-bottom: 12px;
+        margin-bottom: 12px;
+        border-bottom: 1px dashed #e2e8f0;
+      }
+
+      .section-connection input:disabled {
+        background: #f1f5f9;
+        color: #64748b;
+        cursor: not-allowed;
+      }
+
       label {
         font-size: 12px;
         font-weight: 600;
@@ -198,6 +215,18 @@
       </div>
 
       <div class="filters">
+        <div class="filter-row section-connection">
+          <div class="filter-group url-group">
+            <label for="amqpUrl">LavinMQ URL</label>
+            <input
+              type="text"
+              id="amqpUrl"
+              spellcheck="false"
+              placeholder="ws://guest:guest@host:15672/"
+            />
+          </div>
+        </div>
+
         <div class="filter-row">
           <div class="filter-group">
             <label for="messageType">Message Type</label>
@@ -220,49 +249,9 @@
               <option value="ja">Japanese</option>
               <option value="fr">French</option>
               <option value="de">German</option>
-              <option value="it">Italian</option>
-              <option value="ko">Korean</option>
-              <option value="zh">Chinese (Simplified)</option>
-              <option value="zh-TW">Chinese (Traditional)</option>
-              <option value="ar">Arabic</option>
-              <option value="hi">Hindi</option>
-              <option value="ru">Russian</option>
-              <option value="nl">Dutch</option>
               <option value="sv">Swedish</option>
-              <option value="no">Norwegian</option>
-              <option value="da">Danish</option>
-              <option value="fi">Finnish</option>
-              <option value="pl">Polish</option>
-              <option value="tr">Turkish</option>
-              <option value="th">Thai</option>
-              <option value="vi">Vietnamese</option>
-              <option value="id">Indonesian</option>
-              <option value="ms">Malay</option>
-              <option value="tl">Filipino</option>
-              <option value="uk">Ukrainian</option>
-              <option value="cs">Czech</option>
-              <option value="sk">Slovak</option>
-              <option value="hu">Hungarian</option>
-              <option value="ro">Romanian</option>
-              <option value="bg">Bulgarian</option>
-              <option value="hr">Croatian</option>
-              <option value="sr">Serbian</option>
-              <option value="sl">Slovenian</option>
-              <option value="et">Estonian</option>
-              <option value="lv">Latvian</option>
-              <option value="lt">Lithuanian</option>
-              <option value="el">Greek</option>
-              <option value="he">Hebrew</option>
-              <option value="fa">Persian</option>
-              <option value="ur">Urdu</option>
-              <option value="bn">Bengali</option>
-              <option value="ta">Tamil</option>
-              <option value="te">Telugu</option>
-              <option value="ml">Malayalam</option>
-              <option value="kn">Kannada</option>
-              <option value="gu">Gujarati</option>
-              <option value="mr">Marathi</option>
-              <option value="pa">Punjabi</option>
+              <option value="ko">Korean</option>
+              <option value="zh">Chinese</option>
             </select>
           </div>
 
@@ -274,34 +263,8 @@
             </select>
           </div>
 
-          <div class="filter-group">
-            <label for="maxMessages">Max Messages</label>
-            <select id="maxMessages">
-              <option value="5" selected>5 messages</option>
-              <option value="10">10 messages</option>
-              <option value="25">25 messages</option>
-              <option value="50">50 messages</option>
-              <option value="100">100 messages</option>
-            </select>
-          </div>
-
-          <div class="filter-group">
-            <label for="messageDelay">Message Delay (ms)</label>
-            <input
-              type="number"
-              id="messageDelay"
-              value="0"
-              min="0"
-              max="60000"
-              step="10"
-              placeholder="0"
-            />
-          </div>
-
           <div class="controls">
-            <button id="startButton">Start Stream</button>
-            <button id="pauseButton" disabled>Pause</button>
-            <button id="stopButton" disabled>Stop Stream</button>
+            <button id="toggleButton">Start Stream</button>
             <button id="clearButton" class="clear-messages">
               Clear Messages
             </button>
@@ -336,20 +299,15 @@
     </div>
 
     <script>
+      const VISIBLE_MESSAGES = 50;
+
       let amqpClient = null;
       let amqpChannel = null;
       let consumer = null;
       let messageCount = 0;
-      let maxMessages = 5;
-      let messageDelay = 0;
-      let isPaused = false;
+      let streaming = false;
       let stats = {
         totalReceived: 0,
-        posts: 0,
-        likes: 0,
-        reposts: 0,
-        follows: 0,
-        others: 0,
         startTime: null,
         languages: {},
       };
@@ -361,10 +319,32 @@
       const messageCountElement = document.getElementById("messageCount");
       const statsDisplay = document.getElementById("statsDisplay");
       const messagesContainer = document.getElementById("messages");
-      const startButton = document.getElementById("startButton");
-      const pauseButton = document.getElementById("pauseButton");
-      const stopButton = document.getElementById("stopButton");
+      const toggleButton = document.getElementById("toggleButton");
       const clearButton = document.getElementById("clearButton");
+
+      const amqpUrlInput = document.getElementById("amqpUrl");
+      const defaultProto =
+        window.location.protocol === "https:" ? "wss:" : "ws:";
+      const defaultHost = window.location.hostname || "127.0.0.1";
+      amqpUrlInput.value = `${defaultProto}//guest:guest@${defaultHost}:15672/`;
+
+      function setConnectionInputsDisabled(disabled) {
+        amqpUrlInput.disabled = disabled;
+      }
+
+      function parseAmqpUrl(raw) {
+        const u = new URL(raw);
+        if (u.protocol !== "ws:" && u.protocol !== "wss:") {
+          throw new Error(`Unsupported scheme ${u.protocol}, use ws:// or wss://`);
+        }
+        const vhostPath = u.pathname.slice(1);
+        return {
+          wsUrl: `${u.protocol}//${u.host}`,
+          vhost: vhostPath ? decodeURIComponent(vhostPath) : "/",
+          username: decodeURIComponent(u.username || "guest"),
+          password: decodeURIComponent(u.password || "guest"),
+        };
+      }
 
       function updateStatus(status, text) {
         statusIndicator.className = `status-indicator status-${status}`;
@@ -377,30 +357,11 @@
 
       function updateStats(messageType, record) {
         stats.totalReceived++;
-
-        switch (messageType) {
-          case "post":
-            stats.posts++;
-            // Track languages for posts
-            if (record && record.langs) {
-              record.langs.forEach((lang) => {
-                stats.languages[lang] = (stats.languages[lang] || 0) + 1;
-              });
-            }
-            break;
-          case "like":
-            stats.likes++;
-            break;
-          case "repost":
-            stats.reposts++;
-            break;
-          case "follow":
-            stats.follows++;
-            break;
-          default:
-            stats.others++;
+        if (messageType === "post" && record?.langs) {
+          record.langs.forEach((lang) => {
+            stats.languages[lang] = (stats.languages[lang] || 0) + 1;
+          });
         }
-
         displayStats();
       }
 
@@ -423,7 +384,6 @@
         statsDisplay.innerHTML = `
                 <strong>LavinMQ:</strong> ${connectionStatus}<br>
                 <strong>Stream:</strong> ${stats.totalReceived} total | ${rate}/sec | ${elapsed}s connected<br>
-                <strong>Types:</strong> Posts: ${stats.posts} | Likes: ${stats.likes} | Reposts: ${stats.reposts} | Follows: ${stats.follows} | Others: ${stats.others}<br>
                 ${topLanguages ? `<strong>Languages:</strong> ${topLanguages}` : ""}
             `;
       }
@@ -541,7 +501,7 @@
           return;
         }
 
-        if (messageCount >= maxMessages) {
+        if (messageCount >= VISIBLE_MESSAGES) {
           const firstMessage = messagesContainer.querySelector(".message");
           if (firstMessage) {
             firstMessage.remove();
@@ -564,21 +524,11 @@
         }
 
         updateStatus("connecting", "Connecting to LavinMQ...");
-        startButton.disabled = true;
-        pauseButton.disabled = false;
-        stopButton.disabled = false;
+        streaming = true;
+        toggleButton.textContent = "Stop Stream";
 
-        maxMessages = parseInt(document.getElementById("maxMessages").value);
-        messageDelay = parseInt(document.getElementById("messageDelay").value);
-
-        // Reset and start stats tracking
         stats = {
           totalReceived: 0,
-          posts: 0,
-          likes: 0,
-          reposts: 0,
-          follows: 0,
-          others: 0,
           startTime: Date.now(),
           languages: {},
         };
@@ -592,13 +542,12 @@
         const startPosition = document.getElementById("startPosition").value;
 
         try {
-          // Connect to LavinMQ using AMQP WebSocket client
-          const url = "ws://127.0.0.1:15672";
-          const vhost = "/";
-          const username = "guest";
-          const password = "guest";
+          const { wsUrl, vhost, username, password } = parseAmqpUrl(
+            amqpUrlInput.value.trim(),
+          );
 
-          amqpClient = new AMQPWebSocketClient(url, vhost, username, password);
+          setConnectionInputsDisabled(true);
+          amqpClient = new AMQPWebSocketClient(wsUrl, vhost, username, password);
           await amqpClient.connect();
           amqpChannel = await amqpClient.channel();
 
@@ -607,7 +556,6 @@
 
           updateStatus("connected", "Connected - Setting up queue...");
 
-          // Declare the stream queue
           const streamName = "bluesky-stream";
           const queue = await amqpChannel.queue(
             streamName,
@@ -649,31 +597,12 @@
 
           consumer = await queue.subscribe(consumeOptions, async (msg) => {
             try {
-              // Wait if paused
-              while (isPaused) {
-                await new Promise((resolve) => setTimeout(resolve, 100));
-              }
-
-              if (
-                msg &&
-                msg.properties &&
-                msg.properties.contentType === "application/json"
-              ) {
-                const bodyString = msg.bodyToString();
-                const body = JSON.parse(bodyString);
-                const messageWithHeaders = {
-                  headers: msg.properties.headers || {},
-                  body: body,
-                };
-
-                addMessage(messageWithHeaders, filters);
-
-                // Apply artificial delay AFTER processing but BEFORE ack
-                if (messageDelay > 0) {
-                  await new Promise((resolve) =>
-                    setTimeout(resolve, messageDelay),
-                  );
-                }
+              if (msg.properties?.contentType === "application/json") {
+                const body = JSON.parse(msg.bodyToString());
+                addMessage(
+                  { headers: msg.properties.headers || {}, body },
+                  filters,
+                );
               }
               await msg.ack();
             } catch (error) {
@@ -692,33 +621,24 @@
         } catch (error) {
           console.error("Connection error:", error);
           updateStatus("disconnected", `Connection failed: ${error.message}`);
-          startButton.disabled = false;
-          stopButton.disabled = true;
-
-          // Clean up on error
-          await cleanup();
-        }
-      }
-
-      function togglePause() {
-        isPaused = !isPaused;
-        if (isPaused) {
-          pauseButton.textContent = "Resume";
-          updateStatus("connected", "Paused - Consumer active");
-        } else {
-          pauseButton.textContent = "Pause";
-          updateStatus("connected", "Connected - Receiving messages");
+          await stopStream();
         }
       }
 
       async function stopStream() {
         await cleanup();
         updateStatus("disconnected", "Disconnected");
-        startButton.disabled = false;
-        pauseButton.disabled = true;
-        pauseButton.textContent = "Pause";
-        stopButton.disabled = true;
-        isPaused = false;
+        streaming = false;
+        toggleButton.textContent = "Start Stream";
+        setConnectionInputsDisabled(false);
+      }
+
+      function toggleStream() {
+        if (streaming) {
+          stopStream();
+        } else {
+          startStream();
+        }
       }
 
       async function cleanup() {
@@ -753,39 +673,16 @@
         messageCount = 0;
         updateMessageCount();
 
-        // Reset stats but keep connection time
-        const currentStartTime = stats.startTime;
         stats = {
           totalReceived: 0,
-          posts: 0,
-          likes: 0,
-          reposts: 0,
-          follows: 0,
-          others: 0,
-          startTime: currentStartTime,
+          startTime: stats.startTime,
           languages: {},
         };
         displayStats();
       }
 
-      startButton.addEventListener("click", startStream);
-      pauseButton.addEventListener("click", togglePause);
-      stopButton.addEventListener("click", stopStream);
+      toggleButton.addEventListener("click", toggleStream);
       clearButton.addEventListener("click", clearMessages);
-
-      // Update max messages when changed
-      document
-        .getElementById("maxMessages")
-        .addEventListener("change", function () {
-          maxMessages = parseInt(this.value);
-        });
-
-      // Update message delay when changed
-      document
-        .getElementById("messageDelay")
-        .addEventListener("change", function () {
-          messageDelay = parseInt(this.value);
-        });
 
       // Clean up when page is closed
       window.addEventListener("beforeunload", cleanup);
