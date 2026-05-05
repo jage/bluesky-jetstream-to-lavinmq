@@ -1,49 +1,23 @@
 # Agent Development Guide
 
-A file for [guiding coding agents](https://agents.md/).
-
 ## Commands
 
-### Setup
 - **Install:** `npm install`
+- **Run everything (recommended):** `docker compose up` — brings up LavinMQ + producer + viewer
+- **Run producer only (LavinMQ must already be running):** `npm start`
+- **Format:** `prettier -w .`
 
-### Producer (Jetstream to LavinMQ)
-- **Start producer:** `npm start`
+## Project layout
 
-### Web Viewer (Recommended)
-- **Start web server:** `npm run serve` (serves on http://localhost:8000)
-- **Alternative:** `python3 -m http.server 8000`
-- **Features:** Real-time streaming, filtering, statistics, responsive UI
+- `index.js` — Producer: subscribes to Bluesky Jetstream, publishes to LavinMQ, also serves the viewer over HTTP.
+- `index.html` — Browser viewer: connects to LavinMQ over AMQP-over-WebSocket and demonstrates `x-stream-filter`.
+- `Dockerfile`, `docker-compose.yml` — Single-command local stack (LavinMQ + producer).
 
-### Command-line Consumer 
-- **Start consumer (unlimited):** `npm run consumer` or `node consumer.js`
-- **Get sample messages:** `node consumer.js 10` (fetches 10 messages and stops)
-- **Filter by language:** `node consumer.js --lang en` (English messages only)  
-- **Filter by type:** `node consumer.js --posts-only` (text posts only)
-- **Combined filters:** `node consumer.js --lang ja --posts-only` (Japanese text posts)
-- **Save messages to file:** `node consumer.js 100 > samples.json`
+## What this demo is for
 
-### Development
-- **Formatter:** `prettier -w .`
-
-## Project Structure
-
-- **Producer (Jetstream to LavinMQ):** `index.js`
-- **Web Viewer:** `index.html` (with AMQP WebSocket client)
-- **Command-line Consumer:** `consumer.js`
-- **Configuration:** `.env` (copy from `.env.example`)
-
-## Web Viewer Details
-
-The web-based stream viewer (`index.html`) provides:
-- Direct AMQP WebSocket connection to LavinMQ (no separate server needed)
-- Real-time message filtering by type and language
-- Live statistics display (rates, types, languages)
-- Responsive design for desktop and mobile
-- Support for 45+ languages including English, Japanese, Spanish, etc.
-
-**To use:** Run `npm run serve`, open http://localhost:8000, click "Start Stream"
+Demonstrating LavinMQ **stream filtering**. The producer tags messages with `bs.type`, `bs.lang`, `bs.has_media`, `bs.date` headers; the viewer subscribes with matching `x-stream-filter` arguments. Keep additions aligned with that focus — extra headers, alternate transports, or auxiliary CLIs dilute the demo.
 
 ## Code style
 
-- Avoid extra dependencies
+- Avoid extra dependencies.
+- Match the existing `at=info event=...` log style in `index.js`.

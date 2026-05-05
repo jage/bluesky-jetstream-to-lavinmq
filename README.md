@@ -1,9 +1,9 @@
 # Bluesky Streams
 
-A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket and publishes messages to a LavinMQ stream queue. Includes both a command-line interface and a web-based real-time viewer.
+A demo of [LavinMQ](https://lavinmq.com) **stream filtering**. A Node.js producer subscribes to the [Bluesky Jetstream](https://github.com/bluesky-social/jetstream) firehose, tags each message with AMQP headers, and publishes it to a LavinMQ stream queue. A browser viewer connects directly to LavinMQ over WebSocket and uses `x-stream-filter` to subscribe only to messages matching the chosen type and language.
 
-- LavinMQ streams documentation: https://lavinmq.com/documentation/streams
-- Bluesky Jetstream documentation: https://github.com/bluesky-social/jetstream
+- LavinMQ streams: <https://lavinmq.com/documentation/streams>
+- Bluesky Jetstream: <https://github.com/bluesky-social/jetstream>
 
 ## Architecture
 
@@ -11,133 +11,55 @@ A Node.js application that consumes the Bluesky Jetstream firehose via WebSocket
 graph LR
     Bluesky[Bluesky Jetstream] -->|WebSocket| Producer[Node.js Producer]
     Producer -->|AMQP| LavinMQ[(LavinMQ Stream)]
-    LavinMQ -->|AMQP WebSocket| WebViewer[Web Viewer]
-    LavinMQ -->|AMQP| CLIConsumer[CLI Consumer]
-    Producer -->|HTTP :8000| WebViewer
-    
-    %% Styling
-    classDef external fill:#e3f2fd
-    classDef app fill:#f3e5f5
-    classDef storage fill:#fff8e1
-    classDef consumer fill:#e8f5e8
-    
-    class Bluesky external
-    class Producer app
-    class LavinMQ storage
-    class WebViewer,CLIConsumer consumer
+    LavinMQ -->|AMQP/WebSocket| Viewer[Browser Viewer]
+    Producer -->|HTTP :8000| Viewer
 ```
 
-## TODO:
+## Quick start
 
-- Add `x-stream-filter-value` and message headers like `type: post`, `date: 2025-08-27`, `language: en`
-- Look at compression, make sure we can store lots of data
+```bash
+docker compose up
+```
 
-## Installation
+Then open <http://localhost:8000> and click **Start Stream**.
+
+`docker compose up` brings up LavinMQ (AMQP on 5672, WebSocket on 15672) and the producer (HTTP viewer on 8000). The producer ingests Jetstream and publishes to the `bluesky-stream` queue; the viewer connects to LavinMQ directly and applies stream filters.
+
+## Running without Docker
 
 ```bash
 npm install
+AMQP_URL=amqp://localhost:5672 npm start
 ```
+
+Requires LavinMQ running locally with AMQP on 5672 and WebSocket on 15672.
 
 ## Configuration
 
-Set the following environment variables:
+| Variable      | Default                  | Purpose             |
+|---------------|--------------------------|---------------------|
+| `AMQP_URL`    | `amqp://localhost:5672`  | LavinMQ connection  |
+| `STREAM_NAME` | `bluesky-stream`         | Stream queue name   |
+| `HTTP_PORT`   | `8000`                   | Viewer HTTP port    |
 
-- `AMQP_URL`: LavinMQ connection URL (default: `amqp://localhost:5672`)
-- `STREAM_NAME`: Queue name for publishing messages (default: `bluesky-stream`)
-- `HTTP_PORT`: HTTP server port for web viewer (default: `8000`)
+## Retention
 
-## Usage
-
-### Producer with Web Viewer
-
-Start the producer to consume from Bluesky Jetstream and publish to LavinMQ. The web viewer is automatically started on port 8000:
+Disk usage is bounded by a LavinMQ **policy** (`bluesky-retention`) that sets `max-length-bytes=500000000` (500 MB) on any queue matching `^bluesky-stream$`. The policy is applied by the `policy-init` service in `docker-compose.yml` via `lavinmqctl set_policy`. Tune the value there, or apply your own policy if running LavinMQ outside compose:
 
 ```bash
-npm start
+lavinmqctl set_policy bluesky-retention "^bluesky-stream$" \
+  '{"max-length-bytes":500000000}' --apply-to=queues
 ```
 
-Then open http://localhost:8000 in your browser.
+## How filtering works
 
-Or with custom configuration:
+The producer attaches headers to every message:
 
-```bash
-AMQP_URL=amqp://user:pass@localhost:5672 STREAM_NAME=my-stream HTTP_PORT=3000 npm start
-```
+| Header          | Example       | Meaning                        |
+|-----------------|---------------|--------------------------------|
+| `bs.type`       | `post`        | Activity kind (post/like/...)  |
+| `bs.lang`       | `en`          | First language tag of a post   |
+| `bs.has_media`  | `true`        | Set when the post has an embed |
+| `bs.date`       | `2026-05-05`  | UTC date of the event          |
 
-**Web Viewer Features:**
-- 🔴 **Live streaming** with real-time message display
-- 🎯 **Advanced filtering** by message type (posts, likes, reposts, follows) and language (45+ supported)
-- 📊 **Live statistics** showing message rates, type breakdown, and top languages
-- ⚡ **WebSocket connection** directly to LavinMQ for minimal latency
-- 🎨 **Responsive UI** with clean, modern design
-- 📱 **Mobile-friendly** interface
-
-### Consumer (Read from LavinMQ)
-
-The consumer can run in two modes:
-
-#### Unlimited consumption (runs until stopped)
-```bash
-npm run consumer
-# or
-node consumer.js
-```
-
-#### Limited consumption (fetches N messages and stops)
-```bash
-node consumer.js 10                       # Get 10 messages as JSON array
-node consumer.js 100 > samples.json       # Get 100 messages and save to file
-```
-
-#### Filtered consumption
-```bash
-node consumer.js --lang en                # Only English messages
-node consumer.js --posts-only             # Only text posts (no likes, reposts, etc.)
-node consumer.js 50 --lang ja             # Get 50 Japanese messages
-node consumer.js --lang en --posts-only   # English text posts only
-node consumer.js --lang es > spanish.json # Spanish messages to file
-```
-
-**Consumer Options:**
-- `--lang <language>`: Filter by language code (e.g., en, ja, es, fr)
-- `--posts-only`: Only consume text posts (excludes likes, reposts, follows, etc.)
-- `--help`: Show usage help
-
-## Features
-
-- Connects to Bluesky Jetstream WebSocket feed
-- Publishes all messages to LavinMQ stream queue with rich headers
-- Automatic reconnection with exponential backoff
-- Graceful shutdown handling
-- Message filtering via headers for language, type, date, and action
-- Minimal dependencies (ws, amqp-client.js)
-
-## Message Headers
-
-The producer automatically adds headers to each message for filtering:
-
-**Basic Headers:**
-- `bs.kind` - Message type (commit, handle, migrate, tombstone, info)
-- `bs.operation` - Operation type (create, update, delete)
-- `bs.type` - Content type (post, like, repost, follow, profile, etc.)
-- `bs.date` - Date in YYYY-MM-DD format
-
-**Identifier Headers:**
-- `bs.did` - Actor DID
-- `bs.rkey` - Record key  
-- `bs.cid` - Content hash
-
-**Content Headers (for posts):**
-- `bs.lang` - Language code (e.g., "en", "ja")
-- `bs.text_chars` - Text length
-- `bs.has_media` - true/false for embedded media
-
-**Timestamp Headers:**
-- `bs.time_us` - Jetstream timestamp (microseconds)
-- `bs.created_at` - Author timestamp (ISO-8601)
-- `bs.record_date` - Record date in YYYY-MM-DD format
-
-## Dependencies
-
-- `ws`: WebSocket client for connecting to Bluesky Jetstream
-- `amqp-client.js`: AMQP client for LavinMQ integration
+The viewer subscribes with `x-stream-filter` arguments matching these headers. LavinMQ only delivers messages whose headers match — see `index.html` for the subscribe call and `index.js` for the publish side.

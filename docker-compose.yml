@@ -1,0 +1,43 @@
+services:
+  lavinmq:
+    image: cloudamqp/lavinmq:latest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "lavinmqctl", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  policy-init:
+    image: cloudamqp/lavinmq:latest
+    depends_on:
+      lavinmq:
+        condition: service_healthy
+    entrypoint:
+      - "lavinmqctl"
+      - "--hostname=lavinmq"
+      - "--user=guest"
+      - "--password=guest"
+      - "set_policy"
+    command:
+      - "bluesky-retention"
+      - "^bluesky-stream$"
+      - '{"max-length-bytes":500000000}'
+      - "--apply-to=queues"
+    restart: "no"
+
+  producer:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      AMQP_URL: amqp://guest:guest@lavinmq:5672
+      STREAM_NAME: bluesky-stream
+    depends_on:
+      lavinmq:
+        condition: service_healthy
+      policy-init:
+        condition: service_completed_successfully
