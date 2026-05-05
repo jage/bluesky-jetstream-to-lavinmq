@@ -32,6 +32,15 @@
         padding: 20px;
       }
 
+      .header a.mgmt-link {
+        color: #93c5fd;
+        text-decoration: none;
+      }
+
+      .header a.mgmt-link:hover {
+        text-decoration: underline;
+      }
+
       .filters {
         padding: 20px;
         border-bottom: 1px solid #e2e8f0;
@@ -152,6 +161,18 @@
         overflow: hidden;
       }
 
+      a.message {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        transition: background 0.1s;
+      }
+
+      a.message:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+
       .message-header {
         background: #f8fafc;
         padding: 10px 15px;
@@ -211,7 +232,12 @@
     <div class="container">
       <div class="header">
         <h1>Bluesky Stream Viewer</h1>
-        <p>Live stream of Bluesky activities with filtering</p>
+        <p>
+          Live stream of Bluesky activities with filtering ·
+          <a id="mgmtLink" class="mgmt-link" target="_blank" rel="noopener"
+            >Open queue in LavinMQ →</a
+          >
+        </p>
       </div>
 
       <div class="filters">
@@ -346,6 +372,23 @@
         };
       }
 
+      const mgmtLink = document.getElementById("mgmtLink");
+      const STREAM_NAME = "bluesky-stream";
+
+      function refreshMgmtLink() {
+        try {
+          const u = new URL(amqpUrlInput.value);
+          const httpProto = u.protocol === "wss:" ? "https:" : "http:";
+          const vhostPath = u.pathname.slice(1);
+          const vhost = vhostPath ? decodeURIComponent(vhostPath) : "/";
+          mgmtLink.href = `${httpProto}//${u.host}/queues/${encodeURIComponent(vhost)}/${STREAM_NAME}`;
+        } catch {
+          mgmtLink.removeAttribute("href");
+        }
+      }
+      refreshMgmtLink();
+      amqpUrlInput.addEventListener("input", refreshMgmtLink);
+
       function updateStatus(status, text) {
         statusIndicator.className = `status-indicator status-${status}`;
         statusText.textContent = text;
@@ -399,9 +442,34 @@
         return parts[parts.length - 1];
       }
 
+      function bskyUrl(data) {
+        const commit = data.body?.commit;
+        const record = commit?.record;
+        const type = getMessageType(record);
+        const did = data.body?.did;
+
+        if (type === "post" && did && commit?.rkey) {
+          return `https://bsky.app/profile/${did}/post/${commit.rkey}`;
+        }
+        if ((type === "like" || type === "repost") && record?.subject?.uri) {
+          const m = record.subject.uri.match(/^at:\/\/([^/]+)\/[^/]+\/(.+)$/);
+          if (m) return `https://bsky.app/profile/${m[1]}/post/${m[2]}`;
+        }
+        if (type === "follow" && typeof record?.subject === "string") {
+          return `https://bsky.app/profile/${record.subject}`;
+        }
+        return null;
+      }
+
       function renderMessage(data) {
-        const messageDiv = document.createElement("div");
+        const url = bskyUrl(data);
+        const messageDiv = document.createElement(url ? "a" : "div");
         messageDiv.className = "message";
+        if (url) {
+          messageDiv.href = url;
+          messageDiv.target = "_blank";
+          messageDiv.rel = "noopener noreferrer";
+        }
 
         // Defensive access to nested properties
         const commit = data.body?.commit;
